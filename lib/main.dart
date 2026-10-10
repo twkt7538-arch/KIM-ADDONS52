@@ -1,14 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    debugPrint("Firebase init bypassed: $e");
-  }
   runApp(const KimAddonsApp());
 }
 
@@ -219,7 +212,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
-// ------------------- 2. الواجهة الرئيسية والشريط السفلي -------------------
+// ------------------- 2. الواجهة الرئيسية -------------------
 class MainNavigationScreen extends StatefulWidget {
   final String userName;
   final bool isDarkMode;
@@ -249,35 +242,29 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   String searchQuery = "";
   bool notificationsEnabled = true;
 
-  late List<AddonItem> localAddons;
-
-  @override
-  void initState() {
-    super.initState();
-    localAddons = [
-      AddonItem(
-        title: 'سيف الحمم البركانية',
-        category: 'أسلحة أسطورية',
-        description: 'سيف متطور يطلق نيران بركانية بدمار ثلاثي الأبعاد.',
-        icon: Icons.local_fire_department_rounded,
-        rating: '5.0',
-      ),
-      AddonItem(
-        title: 'قرية المدى المخفية',
-        category: 'خرائط بقاء',
-        description: 'خريطة تفاعلية مع أنفاق سرية وموارد نادرة.',
-        icon: Icons.terrain_rounded,
-        rating: '4.8',
-      ),
-      AddonItem(
-        title: 'سكن المحارب التنين',
-        category: 'سكنات فخمة',
-        description: 'سكن ثلاثي الأبعاد بتأثيرات ضوئية متحركة.',
-        icon: Icons.shield_rounded,
-        rating: '4.9',
-      ),
-    ];
-  }
+  static List<AddonItem> sharedAddons = [
+    AddonItem(
+      title: 'سيف الحمم البركانية',
+      category: 'أسلحة أسطورية',
+      description: 'سيف متطور يطلق نيران بركانية بدمار ثلاثي الأبعاد.',
+      icon: Icons.local_fire_department_rounded,
+      rating: '5.0',
+    ),
+    AddonItem(
+      title: 'قرية المدى المخفية',
+      category: 'خرائط بقاء',
+      description: 'خريطة تفاعلية مع أنفاق سرية وموارد نادرة.',
+      icon: Icons.terrain_rounded,
+      rating: '4.8',
+    ),
+    AddonItem(
+      title: 'سكن المحارب التنين',
+      category: 'سكنات فخمة',
+      description: 'سكن ثلاثي الأبعاد بتأثيرات ضوئية متحركة.',
+      icon: Icons.shield_rounded,
+      rating: '4.9',
+    ),
+  ];
 
   void _showNotificationsDialog() {
     showDialog(
@@ -349,19 +336,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   ],
                 ),
               ),
-              ListTile(
-                leading: const Icon(Icons.language),
-                title: const Text('لغة التطبيق'),
-                trailing: DropdownButton<String>(
-                  value: widget.currentLanguage,
-                  items: ['العربية', 'English'].map((lang) {
-                    return DropdownMenuItem(value: lang, child: Text(lang));
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) widget.changeLanguage(val);
-                  },
-                ),
-              ),
             ],
           ),
         );
@@ -381,76 +355,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 
-  Widget _buildAddonList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('addons').snapshots(),
-      builder: (context, snapshot) {
-        List<AddonItem> displayItems = List.from(localAddons);
-
-        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-          for (var doc in snapshot.data!.docs) {
-            final data = doc.data() as Map<String, dynamic>;
-            displayItems.add(AddonItem(
-              title: data['title'] ?? 'مود جديد',
-              category: data['category'] ?? 'عام',
-              description: data['description'] ?? '',
-              icon: Icons.extension,
-            ));
-          }
-        }
-
-        List<AddonItem> filtered = displayItems.where((item) {
-          return item.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
-              item.category.toLowerCase().contains(searchQuery.toLowerCase());
-        }).toList();
-
-        return ListView.builder(
-          itemCount: filtered.length,
-          itemBuilder: (context, index) {
-            final addon = filtered[index];
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: widget.primaryColor.withOpacity(0.2)),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4)),
-                ],
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(12),
-                leading: CircleAvatar(
-                  backgroundColor: widget.primaryColor.withOpacity(0.15),
-                  child: Icon(addon.icon, color: widget.primaryColor),
-                ),
-                title: Text(addon.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(addon.category, style: TextStyle(color: widget.primaryColor, fontSize: 11)),
-                    const SizedBox(height: 4),
-                    Text(addon.description, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  ],
-                ),
-                trailing: IconButton(
-                  icon: Icon(
-                    addon.isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: addon.isFavorite ? widget.primaryColor : Colors.grey,
-                  ),
-                  onPressed: () => setState(() => addon.isFavorite = !addon.isFavorite),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    List<AddonItem> favoriteAddons = localAddons.where((item) => item.isFavorite).toList();
+    List<AddonItem> filtered = sharedAddons.where((item) {
+      return item.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          item.category.toLowerCase().contains(searchQuery.toLowerCase());
+    }).toList();
+
+    List<AddonItem> favoriteAddons = sharedAddons.where((item) => item.isFavorite).toList();
+    List<AddonItem> downloadedAddons = sharedAddons.where((item) => item.isDownloaded).toList();
 
     final List<Widget> pages = [
       Column(
@@ -474,7 +387,48 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               ),
             ),
           ),
-          Expanded(child: _buildAddonList()),
+          Expanded(
+            child: ListView.builder(
+              itemCount: filtered.length,
+              itemBuilder: (context, index) {
+                final addon = filtered[index];
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: widget.primaryColor.withOpacity(0.2)),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(12),
+                    leading: CircleAvatar(
+                      backgroundColor: widget.primaryColor.withOpacity(0.15),
+                      child: Icon(addon.icon, color: widget.primaryColor),
+                    ),
+                    title: Text(addon.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(addon.category, style: TextStyle(color: widget.primaryColor, fontSize: 11)),
+                        const SizedBox(height: 4),
+                        Text(addon.description, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                    trailing: IconButton(
+                      icon: Icon(
+                        addon.isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: addon.isFavorite ? widget.primaryColor : Colors.grey,
+                      ),
+                      onPressed: () => setState(() => addon.isFavorite = !addon.isFavorite),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
       favoriteAddons.isEmpty
@@ -487,11 +441,21 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 subtitle: Text(favoriteAddons[index].category),
               ),
             ),
-      const Center(child: Text('لم تقم بتحميل أي إضافة حتى الآن')),
+      downloadedAddons.isEmpty
+          ? const Center(child: Text('لم تقم بتحميل أي إضافة حتى الآن'))
+          : ListView.builder(
+              itemCount: downloadedAddons.length,
+              itemBuilder: (context, index) => ListTile(
+                leading: const Icon(Icons.check_circle, color: Colors.green),
+                title: Text(downloadedAddons[index].title),
+                subtitle: const Text('جاهز للتثبيت'),
+              ),
+            ),
       ProfileScreen(
         userName: widget.userName,
         primaryColor: widget.primaryColor,
         isDarkMode: widget.isDarkMode,
+        onAddonAdded: () => setState(() {}),
       ),
     ];
 
@@ -529,17 +493,18 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 }
 
-// ------------------- 3. صفحة الملف الشخصي القابل للتخصيص -------------------
 class ProfileScreen extends StatefulWidget {
   final String userName;
   final Color primaryColor;
   final bool isDarkMode;
+  final VoidCallback onAddonAdded;
 
   const ProfileScreen({
     super.key,
     required this.userName,
     required this.primaryColor,
     required this.isDarkMode,
+    required this.onAddonAdded,
   });
 
   @override
@@ -586,7 +551,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => AdminPanelScreen(primaryColor: widget.primaryColor)),
+                MaterialPageRoute(
+                  builder: (context) => AdminPanelScreen(
+                    primaryColor: widget.primaryColor,
+                    onAddonAdded: widget.onAddonAdded,
+                  ),
+                ),
               );
             },
             icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
@@ -597,12 +567,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
             child: Column(
               children: const [
-                ListTile(
-                  leading: Icon(Icons.download_done_rounded, color: Colors.green),
-                  title: Text('إجمالي التحميلات'),
-                  trailing: Text('12 مود', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                Divider(),
                 ListTile(
                   leading: Icon(Icons.star, color: Colors.amber),
                   title: Text('تقييم الحساب'),
@@ -617,11 +581,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// ------------------- 4. صفحة الأدمن لإضافة المودات -------------------
 class AdminPanelScreen extends StatefulWidget {
   final Color primaryColor;
+  final VoidCallback onAddonAdded;
 
-  const AdminPanelScreen({super.key, required this.primaryColor});
+  const AdminPanelScreen({super.key, required this.primaryColor, required this.onAddonAdded});
 
   @override
   State<AdminPanelScreen> createState() => _AdminPanelScreenState();
@@ -631,10 +595,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
   final _titleController = TextEditingController();
   final _categoryController = TextEditingController();
   final _descController = TextEditingController();
-  final _urlController = TextEditingController();
-  bool isLoading = false;
 
-  void _uploadAddon() async {
+  void _uploadAddon() {
     if (_titleController.text.isEmpty || _descController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('يرجى تعبئة الحقول الأساسية')),
@@ -642,29 +604,20 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
       return;
     }
 
-    setState(() => isLoading = true);
+    _MainNavigationScreenState.sharedAddons.add(
+      AddonItem(
+        title: _titleController.text,
+        category: _categoryController.text.isNotEmpty ? _categoryController.text : 'أدوات',
+        description: _descController.text,
+        icon: Icons.extension,
+      ),
+    );
 
-    try {
-      await FirebaseFirestore.instance.collection('addons').add({
-        'title': _titleController.text,
-        'category': _categoryController.text.isNotEmpty ? _categoryController.text : 'أدوات',
-        'description': _descController.text,
-        'downloadUrl': _urlController.text,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم نشر المود للسحابة بنجاح! 🚀')),
-      );
-      Navigator.pop(context);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم الحفظ المحلي بنجاح (وضع أوفلاين)')),
-      );
-      Navigator.pop(context);
-    } finally {
-      setState(() => isLoading = false);
-    }
+    widget.onAddonAdded();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تم إضافة المود بنجاح إلى التطبيق! 🚀')),
+    );
+    Navigator.pop(context);
   }
 
   @override
@@ -678,7 +631,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
         padding: const EdgeInsets.all(20.0),
         child: ListView(
           children: [
-            const Text('إضافة مود أو خريطة جديدة للسحابة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('إضافة مود أو خريطة جديدة للتطبيق', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             TextField(
               controller: _titleController,
@@ -704,14 +657,6 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            const SizedBox(height: 15),
-            TextField(
-              controller: _urlController,
-              decoration: InputDecoration(
-                labelText: 'رابط التحميل (.mcaddon أو .zip)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
             const SizedBox(height: 30),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -719,10 +664,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              onPressed: isLoading ? null : _uploadAddon,
-              child: isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('نشر المود 🚀', style: TextStyle(fontSize: 16, color: Colors.white)),
+              onPressed: _uploadAddon,
+              child: const Text('إضافة المود فوراً 🚀', style: TextStyle(fontSize: 16, color: Colors.white)),
             ),
           ],
         ),
