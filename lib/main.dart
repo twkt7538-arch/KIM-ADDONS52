@@ -4,20 +4,58 @@ void main() {
   runApp(const KimAddonsApp());
 }
 
-class KimAddonsApp extends StatelessWidget {
+class KimAddonsApp extends StatefulWidget {
   const KimAddonsApp({super.key});
+
+  @override
+  State<KimAddonsApp> createState() => _KimAddonsAppState();
+}
+
+class _KimAddonsAppState extends State<KimAddonsApp> {
+  bool isDarkMode = true;
+  Color primaryThemeColor = const Color(0xFFC62828);
+  String currentLanguage = 'العربية';
+
+  void toggleTheme() {
+    setState(() {
+      isDarkMode = !isDarkMode;
+    });
+  }
+
+  void changePrimaryColor(Color newColor) {
+    setState(() {
+      primaryThemeColor = newColor;
+    });
+  }
+
+  void changeLanguage(String lang) {
+    setState(() {
+      currentLanguage = lang;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Kim Addons 3D',
+      title: 'Kim Addons Pro',
       theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0D0202),
+        brightness: isDarkMode ? Brightness.dark : Brightness.light,
+        scaffoldBackgroundColor: isDarkMode ? const Color(0xFF121212) : const Color(0xFFF4F4F9),
+        primaryColor: primaryThemeColor,
+        colorScheme: isDarkMode 
+            ? ColorScheme.dark(primary: primaryThemeColor) 
+            : ColorScheme.light(primary: primaryThemeColor),
         fontFamily: 'Roboto',
       ),
-      home: const MainNavigationScreen(),
+      home: AuthScreen(
+        isDarkMode: isDarkMode,
+        primaryColor: primaryThemeColor,
+        toggleTheme: toggleTheme,
+        changePrimaryColor: changePrimaryColor,
+        currentLanguage: currentLanguage,
+        changeLanguage: changeLanguage,
+      ),
     );
   }
 }
@@ -42,8 +80,165 @@ class AddonItem {
   });
 }
 
+class AuthScreen extends StatefulWidget {
+  final bool isDarkMode;
+  final Color primaryColor;
+  final VoidCallback toggleTheme;
+  final Function(Color) changePrimaryColor;
+  final String currentLanguage;
+  final Function(String) changeLanguage;
+
+  const AuthScreen({
+    super.key,
+    required this.isDarkMode,
+    required this.primaryColor,
+    required this.toggleTheme,
+    required this.changePrimaryColor,
+    required this.currentLanguage,
+    required this.changeLanguage,
+  });
+
+  @override
+  State<AuthScreen> createState() => _AuthScreenState();
+}
+
+class _AuthScreenState extends State<AuthScreen> {
+  bool isSignUp = false;
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
+
+  void _handleAuth() {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يرجى كتابة البريد وكلمة المرور')),
+      );
+      return;
+    }
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 500),
+        pageBuilder: (context, anim, secAnim) => MainNavigationScreen(
+          userName: _nameController.text.isNotEmpty ? _nameController.text : 'أحمد المنلا',
+          isDarkMode: widget.isDarkMode,
+          primaryColor: widget.primaryColor,
+          toggleTheme: widget.toggleTheme,
+          changePrimaryColor: widget.changePrimaryColor,
+          currentLanguage: widget.currentLanguage,
+          changeLanguage: widget.changeLanguage,
+        ),
+        transitionsBuilder: (context, anim, secAnim, child) {
+          return FadeTransition(opacity: anim, child: ScaleTransition(scale: anim, child: child));
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(25),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.primaryColor.withOpacity(0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+              border: Border.all(color: widget.primaryColor.withOpacity(0.3)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.gamepad_rounded, size: 60, color: widget.primaryColor),
+                const SizedBox(height: 10),
+                Text(
+                  isSignUp ? 'إنشاء حساب جديد' : 'تسجيل الدخول',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: widget.primaryColor),
+                ),
+                const SizedBox(height: 20),
+                if (isSignUp)
+                  TextField(
+                    controller: _nameController,
+                    decoration: InputDecoration(
+                      labelText: 'اسم المستخدم',
+                      prefixIcon: Icon(Icons.person, color: widget.primaryColor),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                    ),
+                  ),
+                if (isSignUp) const SizedBox(height: 12),
+                TextField(
+                  controller: _emailController,
+                  decoration: InputDecoration(
+                    labelText: 'البريد الإلكتروني',
+                    prefixIcon: Icon(Icons.email, color: widget.primaryColor),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'كلمة المرور',
+                    prefixIcon: Icon(Icons.lock, color: widget.primaryColor),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: widget.primaryColor,
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  ),
+                  onPressed: _handleAuth,
+                  child: Text(isSignUp ? 'أنشئ حسابك' : 'دخول', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                ),
+                TextButton(
+                  onPressed: () => setState(() => isSignUp = !isSignUp),
+                  child: Text(
+                    isSignUp ? 'لديك حساب بالفعل؟ سجل دخولك' : 'ليس لديك حساب؟ أنشئ حساباً الآن',
+                    style: TextStyle(color: widget.primaryColor),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({super.key});
+  final String userName;
+  final bool isDarkMode;
+  final Color primaryColor;
+  final VoidCallback toggleTheme;
+  final Function(Color) changePrimaryColor;
+  final String currentLanguage;
+  final Function(String) changeLanguage;
+
+  const MainNavigationScreen({
+    super.key,
+    required this.userName,
+    required this.isDarkMode,
+    required this.primaryColor,
+    required this.toggleTheme,
+    required this.changePrimaryColor,
+    required this.currentLanguage,
+    required this.changeLanguage,
+  });
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
@@ -52,30 +247,139 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   String searchQuery = "";
+  bool notificationsEnabled = true;
 
-  final List<AddonItem> addons = [
-    AddonItem(
-      title: 'سيف الحمم البركانية 3D',
-      category: 'أسلحة أسطورية',
-      description: 'سيف متطور يطلق نيران بركانية بدمار ثلاثي الأبعاد.',
-      icon: Icons.local_fire_department_rounded,
-      rating: '5.0',
-    ),
-    AddonItem(
-      title: 'قرية المدى المخفية HD',
-      category: 'خرائط بقاء',
-      description: 'خريطة تفاعلية مع أنفاق سرية وموارد نادرة.',
-      icon: Icons.terrain_rounded,
-      rating: '4.8',
-    ),
-    AddonItem(
-      title: 'سكن المحارب التنين',
-      category: 'سكنات فخمة',
-      description: 'سكن ثلاثي الأبعاد بتأثيرات ضوئية متحركة.',
-      icon: Icons.shield_rounded,
-      rating: '4.9',
-    ),
-  ];
+  late List<AddonItem> addons;
+
+  @override
+  void initState() {
+    super.initState();
+    addons = [
+      AddonItem(
+        title: 'سيف الحمم البركانية',
+        category: 'أسلحة أسطورية',
+        description: 'سيف متطور يطلق نيران بركانية بدمار ثلاثي الأبعاد.',
+        icon: Icons.local_fire_department_rounded,
+        rating: '5.0',
+      ),
+      AddonItem(
+        title: 'قرية المدى المخفية',
+        category: 'خرائط بقاء',
+        description: 'خريطة تفاعلية مع أنفاق سرية وموارد نادرة.',
+        icon: Icons.terrain_rounded,
+        rating: '4.8',
+      ),
+      AddonItem(
+        title: 'سكن المحارب التنين',
+        category: 'سكنات فخمة',
+        description: 'سكن ثلاثي الأبعاد بتأثيرات ضوئية متحركة.',
+        icon: Icons.shield_rounded,
+        rating: '4.9',
+      ),
+    ];
+  }
+
+  void _showNotificationsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.notifications_active, color: widget.primaryColor),
+            const SizedBox(width: 8),
+            const Text('الإشعارات والتنبيهات'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SwitchListTile(
+              title: const Text('تفعيل إشعارات المودات الجديدة'),
+              value: notificationsEnabled,
+              activeColor: widget.primaryColor,
+              onChanged: (val) {
+                setState(() => notificationsEnabled = val);
+                Navigator.pop(context);
+              },
+            ),
+            const Divider(),
+            const ListTile(
+              leading: Icon(Icons.check_circle, color: Colors.green),
+              title: Text('تم إضافة مود السيف البركاني اليوم!'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSettingsModal() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('إعدادات التطبيق والتخصيص', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 15),
+              ListTile(
+                leading: const Icon(Icons.dark_mode),
+                title: const Text('تغيير مظهر التطبيق (داكن / فاتح)'),
+                trailing: Switch(
+                  value: widget.isDarkMode,
+                  onChanged: (val) => widget.toggleTheme(),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.color_lens),
+                title: const Text('اختر لون التطبيق الأساسي'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _colorOption(const Color(0xFFC62828)),
+                    _colorOption(const Color(0xFF1E88E5)),
+                    _colorOption(const Color(0xFF43A047)),
+                  ],
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.language),
+                title: const Text('لغة التطبيق'),
+                trailing: DropdownButton<String>(
+                  value: widget.currentLanguage,
+                  items: ['العربية', 'English'].map((lang) {
+                    return DropdownMenuItem(value: lang, child: Text(lang));
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) widget.changeLanguage(val);
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _colorOption(Color color) {
+    return GestureDetector(
+      onTap: () => widget.changePrimaryColor(color),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,35 +395,21 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       Column(
         children: [
           Container(
-            margin: const EdgeInsets.all(16),
+            margin: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: const LinearGradient(
-                colors: [Color(0xFF2A0808), Color(0xFF150404)],
-              ),
+              color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(18),
               boxShadow: [
-                BoxShadow(
-                  color: Colors.red.withOpacity(0.25),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                ),
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.8),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
+                BoxShadow(color: widget.primaryColor.withOpacity(0.15), blurRadius: 10, offset: const Offset(0, 4)),
               ],
-              border: Border.all(color: const Color(0xFF8B0000).withOpacity(0.5), width: 1.5),
             ),
             child: TextField(
               onChanged: (val) => setState(() => searchQuery = val),
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                hintText: 'ابحث عن إضافات وخرائط ثلاثية الأبعاد...',
-                hintStyle: TextStyle(color: Colors.white54, fontSize: 13),
-                prefixIcon: Icon(Icons.search_rounded, color: Color(0xFFFF3333)),
+              decoration: InputDecoration(
+                hintText: 'ابحث عن مودات، خرائط، سكنات...',
+                prefixIcon: Icon(Icons.search, color: widget.primaryColor),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               ),
             ),
           ),
@@ -128,145 +418,42 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               itemCount: filteredAddons.length,
               itemBuilder: (context, index) {
                 final addon = filteredAddons[index];
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                return AnimatedContainer(
+                  duration: Duration(milliseconds: 300 + (index * 100)),
+                  curve: Curves.easeOut,
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF320A0A), Color(0xFF1A0303)],
-                    ),
+                    color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: widget.primaryColor.withOpacity(0.2)),
                     boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFB71C1C).withOpacity(0.25),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
-                      ),
-                      const BoxShadow(
-                        color: Colors.black,
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
-                      ),
+                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4)),
                     ],
-                    border: Border.all(color: const Color(0xFFD32F2F).withOpacity(0.4), width: 1.2),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(12),
+                    leading: CircleAvatar(
+                      backgroundColor: widget.primaryColor.withOpacity(0.15),
+                      child: Icon(addon.icon, color: widget.primaryColor),
+                    ),
+                    title: Text(addon.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFF1744), Color(0xFF8B0000)],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.redAccent.withOpacity(0.5),
-                                blurRadius: 12,
-                                spreadRadius: 2,
-                              ),
-                            ],
+                        Text(addon.category, style: TextStyle(color: widget.primaryColor, fontSize: 11)),
+                        const SizedBox(height: 4),
+                        Text(addon.description, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            addon.isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: addon.isFavorite ? widget.primaryColor : Colors.grey,
                           ),
-                          child: Icon(addon.icon, color: Colors.white, size: 30),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFD32F2F).withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: const Color(0xFFFF5252), width: 0.8),
-                                    ),
-                                    child: Text(
-                                      addon.category,
-                                      style: const TextStyle(color: Color(0xFFFF8A8A), fontSize: 10, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
-                                  Text(addon.rating, style: const TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                addon.title,
-                                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                addon.description,
-                                style: const TextStyle(color: Colors.white60, fontSize: 12),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  InkWell(
-                                    onTap: () {
-                                      setState(() => addon.isDownloaded = true);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('تم تحميل ${addon.title} بنجاح!')),
-                                      );
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(12),
-                                        gradient: LinearGradient(
-                                          colors: addon.isDownloaded
-                                              ? [Colors.green.shade700, Colors.green.shade900]
-                                              : [const Color(0xFFFF1744), const Color(0xFFB71C1C)],
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: (addon.isDownloaded ? Colors.green : Colors.red).withOpacity(0.4),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            addon.isDownloaded ? Icons.check_circle_rounded : Icons.file_download_rounded,
-                                            color: Colors.white,
-                                            size: 18,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            addon.isDownloaded ? 'تم التحميل' : 'تحميل 3D',
-                                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  IconButton(
-                                    icon: Icon(
-                                      addon.isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                      color: addon.isFavorite ? const Color(0xFFFF1744) : Colors.white38,
-                                      size: 26,
-                                    ),
-                                    onPressed: () {
-                                      setState(() => addon.isFavorite = !addon.isFavorite);
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                          onPressed: () => setState(() => addon.isFavorite = !addon.isFavorite),
                         ),
                       ],
                     ),
@@ -278,59 +465,145 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         ],
       ),
       favoriteAddons.isEmpty
-          ? const Center(child: Text('لا توجد عناصر في المفضلات بعد', style: TextStyle(color: Colors.white38)))
+          ? const Center(child: Text('لا توجد مضافات في المحفوظات بعد'))
           : ListView.builder(
               itemCount: favoriteAddons.length,
-              itemBuilder: (context, i) => ListTile(
-                leading: Icon(favoriteAddons[i].icon, color: Colors.redAccent),
-                title: Text(favoriteAddons[i].title, style: const TextStyle(color: Colors.white)),
-                subtitle: Text(favoriteAddons[i].category, style: const TextStyle(color: Colors.white54)),
+              itemBuilder: (context, index) => ListTile(
+                leading: Icon(favoriteAddons[index].icon, color: widget.primaryColor),
+                title: Text(favoriteAddons[index].title),
+                subtitle: Text(favoriteAddons[index].category),
               ),
             ),
       downloadedAddons.isEmpty
-          ? const Center(child: Text('لم تقم بتحميل أي إضافة حتى الآن', style: TextStyle(color: Colors.white38)))
+          ? const Center(child: Text('لم تقم بتحميل أي إضافة حتى الآن'))
           : ListView.builder(
               itemCount: downloadedAddons.length,
-              itemBuilder: (context, i) => ListTile(
-                leading: Icon(downloadedAddons[i].icon, color: Colors.greenAccent),
-                title: Text(downloadedAddons[i].title, style: const TextStyle(color: Colors.white)),
-                subtitle: const Text('جاهز للتثبيت في ماين كرافت', style: TextStyle(color: Colors.greenAccent)),
+              itemBuilder: (context, index) => ListTile(
+                leading: const Icon(Icons.check_circle, color: Colors.green),
+                title: Text(downloadedAddons[index].title),
+                subtitle: const Text('جاهز للتثبيت في ماين كرافت'),
               ),
             ),
+      ProfileScreen(
+        userName: widget.userName,
+        primaryColor: widget.primaryColor,
+        isDarkMode: widget.isDarkMode,
+      ),
     ];
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kim Addons 🎮', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+        title: const Text('Kim Addons 🎮', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
-        backgroundColor: const Color(0xFF150404),
-        elevation: 10,
-        shadowColor: Colors.red.withOpacity(0.5),
+        backgroundColor: widget.isDarkMode ? const Color(0xFF1A1A1A) : widget.primaryColor,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_active_rounded),
+            onPressed: _showNotificationsDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: _showSettingsModal,
+          ),
+        ],
       ),
-      body: pages[_currentIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.red.withOpacity(0.2),
-              blurRadius: 20,
-              offset: const Offset(0, -5),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: pages[_currentIndex],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        selectedItemColor: widget.primaryColor,
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'الرئيسية'),
+          BottomNavigationBarItem(icon: Icon(Icons.bookmark_rounded), label: 'المحفوظات'),
+          BottomNavigationBarItem(icon: Icon(Icons.download_rounded), label: 'التحميلات'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'حسابي'),
+        ],
+      ),
+    );
+  }
+}
+
+class ProfileScreen extends StatefulWidget {
+  final String userName;
+  final Color primaryColor;
+  final bool isDarkMode;
+
+  const ProfileScreen({
+    super.key,
+    required this.userName,
+    required this.primaryColor,
+    required this.isDarkMode,
+  });
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  late TextEditingController _nameController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.userName);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              CircleAvatar(
+                radius: 50,
+                backgroundColor: widget.primaryColor.withOpacity(0.2),
+                child: Icon(Icons.person, size: 60, color: widget.primaryColor),
+              ),
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: widget.primaryColor,
+                child: const Icon(Icons.edit, size: 16, color: Colors.white),
+              ),
+            ],
+          ),
+          const SizedBox(height: 15),
+          TextField(
+            controller: _nameController,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              suffixIcon: Icon(Icons.edit, size: 18),
             ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          backgroundColor: const Color(0xFF120303),
-          selectedItemColor: const Color(0xFFFF3333),
-          unselectedItemColor: Colors.white38,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.style_rounded), label: 'الرئيسية 3D'),
-            BottomNavigationBarItem(icon: Icon(Icons.favorite_rounded), label: 'المفضلات'),
-            BottomNavigationBarItem(icon: Icon(Icons.download_for_offline_rounded), label: 'التحميلات'),
-          ],
-        ),
+          ),
+          const SizedBox(height: 20),
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            child: Column(
+              children: const [
+                ListTile(
+                  leading: Icon(Icons.download_done_rounded, color: Colors.green),
+                  title: Text('إجمالي التحميلات'),
+                  trailing: Text('12 مود', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                Divider(),
+                ListTile(
+                  leading: Icon(Icons.star, color: Colors.amber),
+                  title: Text('تقييم الحساب'),
+                  trailing: Text('VIP 🌟', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
