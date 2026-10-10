@@ -26,11 +26,11 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --release
+      - name: Build APK Split Per ABI
+        run: flutter build apk --release --split-per-abi
 
-      - name: Upload APK
+      - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Kim-Addons-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: Kim-Addons-APKs
+          path: build/app/outputs/flutter-apk/*.apk
