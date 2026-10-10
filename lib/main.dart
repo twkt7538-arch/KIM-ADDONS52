@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint("Firebase initialization error: $e");
+  }
   runApp(const KimAddonsApp());
 }
 
@@ -60,26 +68,7 @@ class _KimAddonsAppState extends State<KimAddonsApp> {
   }
 }
 
-class AddonItem {
-  final String title;
-  final String category;
-  final String description;
-  final IconData icon;
-  final String rating;
-  bool isFavorite;
-  bool isDownloaded;
-
-  AddonItem({
-    required this.title,
-    required this.category,
-    required this.description,
-    required this.icon,
-    this.rating = '4.9',
-    this.isFavorite = false,
-    this.isDownloaded = false,
-  });
-}
-
+// ------------------- صفحة تسجيل الدخول -------------------
 class AuthScreen extends StatefulWidget {
   final bool isDarkMode;
   final Color primaryColor;
@@ -220,6 +209,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
+// ------------------- الواجهة الرئيسية وربط قاعدة البيانات -------------------
 class MainNavigationScreen extends StatefulWidget {
   final String userName;
   final bool isDarkMode;
@@ -249,36 +239,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   String searchQuery = "";
   bool notificationsEnabled = true;
 
-  late List<AddonItem> addons;
-
-  @override
-  void initState() {
-    super.initState();
-    addons = [
-      AddonItem(
-        title: 'سيف الحمم البركانية',
-        category: 'أسلحة أسطورية',
-        description: 'سيف متطور يطلق نيران بركانية بدمار ثلاثي الأبعاد.',
-        icon: Icons.local_fire_department_rounded,
-        rating: '5.0',
-      ),
-      AddonItem(
-        title: 'قرية المدى المخفية',
-        category: 'خرائط بقاء',
-        description: 'خريطة تفاعلية مع أنفاق سرية وموارد نادرة.',
-        icon: Icons.terrain_rounded,
-        rating: '4.8',
-      ),
-      AddonItem(
-        title: 'سكن المحارب التنين',
-        category: 'سكنات فخمة',
-        description: 'سكن ثلاثي الأبعاد بتأثيرات ضوئية متحركة.',
-        icon: Icons.shield_rounded,
-        rating: '4.9',
-      ),
-    ];
-  }
-
   void _showNotificationsDialog() {
     showDialog(
       context: context,
@@ -307,7 +267,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             const Divider(),
             const ListTile(
               leading: Icon(Icons.check_circle, color: Colors.green),
-              title: Text('تم إضافة مود السيف البركاني اليوم!'),
+              title: Text('تم الربط بقاعدة البيانات بنجاح!'),
             ),
           ],
         ),
@@ -383,15 +343,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    List<AddonItem> filteredAddons = addons.where((item) {
-      return item.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
-          item.category.toLowerCase().contains(searchQuery.toLowerCase());
-    }).toList();
-
-    List<AddonItem> favoriteAddons = addons.where((item) => item.isFavorite).toList();
-    List<AddonItem> downloadedAddons = addons.where((item) => item.isDownloaded).toList();
-
     final List<Widget> pages = [
+      // 1. الرئيسية مع جلب البيانات من Firestore أونلاين
       Column(
         children: [
           Container(
@@ -414,76 +367,74 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: filteredAddons.length,
-              itemBuilder: (context, index) {
-                final addon = filteredAddons[index];
-                return AnimatedContainer(
-                  duration: Duration(milliseconds: 300 + (index * 100)),
-                  curve: Curves.easeOut,
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: widget.primaryColor.withOpacity(0.2)),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4)),
-                    ],
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(12),
-                    leading: CircleAvatar(
-                      backgroundColor: widget.primaryColor.withOpacity(0.15),
-                      child: Icon(addon.icon, color: widget.primaryColor),
-                    ),
-                    title: Text(addon.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(addon.category, style: TextStyle(color: widget.primaryColor, fontSize: 11)),
-                        const SizedBox(height: 4),
-                        Text(addon.description, maxLines: 2, overflow: TextOverflow.ellipsis),
-                      ],
-                    ),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            addon.isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: addon.isFavorite ? widget.primaryColor : Colors.grey,
-                          ),
-                          onPressed: () => setState(() => addon.isFavorite = !addon.isFavorite),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('addons').snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator(color: widget.primaryColor));
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('لا توجد مضافات مضافة حالياً في قاعدة البيانات'));
+                }
+
+                final docs = snapshot.data!.docs;
+                final filteredDocs = docs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final title = (data['title'] ?? '').toString().toLowerCase();
+                  return title.contains(searchQuery.toLowerCase());
+                }).toList();
+
+                return ListView.builder(
+                  itemCount: filteredDocs.length,
+                  itemBuilder: (context, index) {
+                    final data = filteredDocs[index].data() as Map<String, dynamic>;
+                    final title = data['title'] ?? 'بدون عنوان';
+                    final category = data['category'] ?? 'عام';
+                    final description = data['description'] ?? '';
+
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: widget.primaryColor.withOpacity(0.2)),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4)),
+                        ],
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(12),
+                        leading: CircleAvatar(
+                          backgroundColor: widget.primaryColor.withOpacity(0.15),
+                          child: Icon(Icons.extension, color: widget.primaryColor),
                         ),
-                      ],
-                    ),
-                  ),
+                        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(category, style: TextStyle(color: widget.primaryColor, fontSize: 11)),
+                            const SizedBox(height: 4),
+                            Text(description, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
           ),
         ],
       ),
-      favoriteAddons.isEmpty
-          ? const Center(child: Text('لا توجد مضافات في المحفوظات بعد'))
-          : ListView.builder(
-              itemCount: favoriteAddons.length,
-              itemBuilder: (context, index) => ListTile(
-                leading: Icon(favoriteAddons[index].icon, color: widget.primaryColor),
-                title: Text(favoriteAddons[index].title),
-                subtitle: Text(favoriteAddons[index].category),
-              ),
-            ),
-      downloadedAddons.isEmpty
-          ? const Center(child: Text('لم تقم بتحميل أي إضافة حتى الآن'))
-          : ListView.builder(
-              itemCount: downloadedAddons.length,
-              itemBuilder: (context, index) => ListTile(
-                leading: const Icon(Icons.check_circle, color: Colors.green),
-                title: Text(downloadedAddons[index].title),
-                subtitle: const Text('جاهز للتثبيت في ماين كرافت'),
-              ),
-            ),
+
+      // 2. المحفوظات
+      const Center(child: Text('المحفوظات الفارغة')),
+
+      // 3. التحميلات
+      const Center(child: Text('لا توجد تحميلات حتى الآن')),
+
+      // 4. الملف الشخصي
       ProfileScreen(
         userName: widget.userName,
         primaryColor: widget.primaryColor,
@@ -528,7 +479,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 }
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends StatelessWidget {
   final String userName;
   final Color primaryColor;
   final bool isDarkMode;
@@ -541,64 +492,27 @@ class ProfileScreen extends StatefulWidget {
   });
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends State<ProfileScreen> {
-  late TextEditingController _nameController;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController(text: widget.userName);
-  }
-
-  @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          Stack(
-            alignment: Alignment.bottomRight,
-            children: [
-              CircleAvatar(
-                radius: 50,
-                backgroundColor: widget.primaryColor.withOpacity(0.2),
-                child: Icon(Icons.person, size: 60, color: widget.primaryColor),
-              ),
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: widget.primaryColor,
-                child: const Icon(Icons.edit, size: 16, color: Colors.white),
-              ),
-            ],
+          CircleAvatar(
+            radius: 50,
+            backgroundColor: primaryColor.withOpacity(0.2),
+            child: Icon(Icons.person, size: 60, color: primaryColor),
           ),
           const SizedBox(height: 15),
-          TextField(
-            controller: _nameController,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              suffixIcon: Icon(Icons.edit, size: 18),
-            ),
-          ),
+          Text(userName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           Card(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
             child: Column(
               children: const [
                 ListTile(
-                  leading: Icon(Icons.download_done_rounded, color: Colors.green),
-                  title: Text('إجمالي التحميلات'),
-                  trailing: Text('12 مود', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                Divider(),
-                ListTile(
-                  leading: Icon(Icons.star, color: Colors.amber),
-                  title: Text('تقييم الحساب'),
-                  trailing: Text('VIP 🌟', style: TextStyle(fontWeight: FontWeight.bold)),
+                  leading: Icon(Icons.cloud_done, color: Colors.green),
+                  title: Text('حالة الاتصال بقاعدة البيانات'),
+                  trailing: Text('متصل 🟢', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
