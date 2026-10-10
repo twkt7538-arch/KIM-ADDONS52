@@ -209,7 +209,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
-// ------------------- الواجهة الرئيسية وربط قاعدة البيانات -------------------
+// ------------------- الشاشة الرئيسية وربط السحابة -------------------
 class MainNavigationScreen extends StatefulWidget {
   final String userName;
   final bool isDarkMode;
@@ -267,7 +267,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             const Divider(),
             const ListTile(
               leading: Icon(Icons.check_circle, color: Colors.green),
-              title: Text('تم الربط بقاعدة البيانات بنجاح!'),
+              title: Text('التطبيق متصل بالسحابة بنجاح!'),
             ),
           ],
         ),
@@ -374,7 +374,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   return Center(child: CircularProgressIndicator(color: widget.primaryColor));
                 }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('لا توجد مضافات مضافة حالياً في قاعدة البيانات'));
+                  return const Center(child: Text('لا توجد مضافات مضافة حالياً في السحابة'));
                 }
 
                 final docs = snapshot.data!.docs;
@@ -434,7 +434,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       // 3. التحميلات
       const Center(child: Text('لا توجد تحميلات حتى الآن')),
 
-      // 4. الملف الشخصي
+      // 4. الملف الشخصي مع زر صفحة الأدمن
       ProfileScreen(
         userName: widget.userName,
         primaryColor: widget.primaryColor,
@@ -479,6 +479,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 }
 
+// ------------------- صفحة الملف الشخصي ولوحة تحكم الأدمن -------------------
 class ProfileScreen extends StatelessWidget {
   final String userName;
   final Color primaryColor;
@@ -505,19 +506,148 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 15),
           Text(userName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => AdminPanelScreen(primaryColor: primaryColor)),
+              );
+            },
+            icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
+            label: const Text('لوحة تحكم الأدمن (إضافة مود)', style: TextStyle(color: Colors.white)),
+          ),
+          const SizedBox(height: 20),
           Card(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
             child: Column(
               children: const [
                 ListTile(
                   leading: Icon(Icons.cloud_done, color: Colors.green),
-                  title: Text('حالة الاتصال بقاعدة البيانات'),
+                  title: Text('حالة الاتصال السحابي'),
                   trailing: Text('متصل 🟢', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ------------------- صفحة الأدمن لإضافة المودات للسحابة -------------------
+class AdminPanelScreen extends StatefulWidget {
+  final Color primaryColor;
+
+  const AdminPanelScreen({super.key, required this.primaryColor});
+
+  @override
+  State<AdminPanelScreen> createState() => _AdminPanelScreenState();
+}
+
+class _AdminPanelScreenState extends State<AdminPanelScreen> {
+  final _titleController = TextEditingController();
+  final _categoryController = TextEditingController();
+  final _descController = TextEditingController();
+  final _urlController = TextEditingController();
+  bool isLoading = false;
+
+  void _uploadAddon() async {
+    if (_titleController.text.isEmpty || _descController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يرجى تعبئة الحقول الأساسية')),
+      );
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      await FirebaseFirestore.instance.collection('addons').add({
+        'title': _titleController.text,
+        'category': _categoryController.text.isNotEmpty ? _categoryController.text : 'أدوات',
+        'description': _descController.text,
+        'downloadUrl': _urlController.text,
+        'createdAt:': FieldValue.serverTimestamp(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم نشر المود للسحابة بنجاح! 🚀')),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('حدث خطأ: $e')),
+      );
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('لوحة تحكم الأدمن'),
+        backgroundColor: widget.primaryColor,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: ListView(
+          children: [
+            const Text('إضافة مود أو خريطة جديدة للسحابة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _titleController,
+              decoration: InputDecoration(
+                labelText: 'اسم المود (مثلاً: سيف التنين)',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 15),
+            TextField(
+              controller: _categoryController,
+              decoration: InputDecoration(
+                labelText: 'التصنيف (أسلحة، خرائط، سكنات)',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 15),
+            TextField(
+              controller: _descController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: 'وصف المود',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 15),
+            TextField(
+              controller: _urlController,
+              decoration: InputDecoration(
+                labelText: 'رابط التحميل (.mcaddon أو .zip)',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: widget.primaryColor,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: isLoading ? null : _uploadAddon,
+              child: isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text('نشر المود للسحابة 🚀', style: TextStyle(fontSize: 16, color: Colors.white)),
+            ),
+          ],
+        ),
       ),
     );
   }
