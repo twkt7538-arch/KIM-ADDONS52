@@ -7,7 +7,7 @@ void main() async {
   try {
     await Firebase.initializeApp();
   } catch (e) {
-    debugPrint("Firebase init error: $e");
+    debugPrint("Firebase status: $e");
   }
   runApp(const KimAddonsApp());
 }
@@ -24,23 +24,9 @@ class _KimAddonsAppState extends State<KimAddonsApp> {
   Color primaryThemeColor = const Color(0xFFC62828);
   String currentLanguage = 'العربية';
 
-  void toggleTheme() {
-    setState(() {
-      isDarkMode = !isDarkMode;
-    });
-  }
-
-  void changePrimaryColor(Color newColor) {
-    setState(() {
-      primaryThemeColor = newColor;
-    });
-  }
-
-  void changeLanguage(String lang) {
-    setState(() {
-      currentLanguage = lang;
-    });
-  }
+  void toggleTheme() => setState(() => isDarkMode = !isDarkMode);
+  void changePrimaryColor(Color newColor) => setState(() => primaryThemeColor = newColor);
+  void changeLanguage(String lang) => setState(() => currentLanguage = lang);
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +54,15 @@ class _KimAddonsAppState extends State<KimAddonsApp> {
   }
 }
 
-// ------------------- 1. صفحة تسجيل الدخول -------------------
+class AddonModel {
+  final String title;
+  final String category;
+  final String description;
+
+  AddonModel({required this.title, required this.category, required this.description});
+}
+
+// ------------------- 1. صفحة الدخول -------------------
 class AuthScreen extends StatefulWidget {
   final bool isDarkMode;
   final Color primaryColor;
@@ -127,11 +121,7 @@ class _AuthScreenState extends State<AuthScreen> {
               color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
               borderRadius: BorderRadius.circular(25),
               boxShadow: [
-                BoxShadow(
-                  color: widget.primaryColor.withOpacity(0.2),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
+                BoxShadow(color: widget.primaryColor.withOpacity(0.2), blurRadius: 20, offset: const Offset(0, 10)),
               ],
               border: Border.all(color: widget.primaryColor.withOpacity(0.3)),
             ),
@@ -199,7 +189,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
-// ------------------- 2. الواجهة الرئيسية السحابية -------------------
+// ------------------- 2. الواجهة الرئيسية -------------------
 class MainNavigationScreen extends StatefulWidget {
   final String userName;
   final bool isDarkMode;
@@ -227,162 +217,57 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   String searchQuery = "";
-  bool notificationsEnabled = true;
 
-  void _showNotificationsDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.notifications_active, color: widget.primaryColor),
-            const SizedBox(width: 8),
-            const Text('الإشعارات والتنبيهات'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SwitchListTile(
-              title: const Text('تفعيل إشعارات المودات الجديدة'),
-              value: notificationsEnabled,
-              activeColor: widget.primaryColor,
-              onChanged: (val) {
-                setState(() => notificationsEnabled = val);
-                Navigator.pop(context);
-              },
-            ),
-            const Divider(),
-            const ListTile(
-              leading: Icon(Icons.cloud_done, color: Colors.green),
-              title: Text('الاتصال السحابي بـ Firebase نشط! 🟢'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  static List<AddonModel> defaultAddons = [
+    AddonModel(
+      title: 'سيف الحمم البركانية',
+      category: 'أسلحة أسطورية',
+      description: 'سيف متطور يطلق نيران بركانية بدمار ثلاثي الأبعاد.',
+    ),
+    AddonModel(
+      title: 'قرية المدى المخفية',
+      category: 'خرائط بقاء',
+      description: 'خريطة تفاعلية مع أنفاق سرية وموارد نادرة.',
+    ),
+  ];
 
-  void _showSettingsModal() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('إعدادات التطبيق والتخصيص', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 15),
-              ListTile(
-                leading: const Icon(Icons.dark_mode),
-                title: const Text('تغيير مظهر التطبيق (داكن / فاتح)'),
-                trailing: Switch(
-                  value: widget.isDarkMode,
-                  onChanged: (val) => widget.toggleTheme(),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.color_lens),
-                title: const Text('اختر لون التطبيق الأساسي'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _colorOption(const Color(0xFFC62828)),
-                    _colorOption(const Color(0xFF1E88E5)),
-                    _colorOption(const Color(0xFF43A047)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _colorOption(Color color) {
-    return GestureDetector(
-      onTap: () => widget.changePrimaryColor(color),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        width: 24,
-        height: 24,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      ),
-    );
-  }
-
-  Widget _buildCloudAddonsList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('addons').snapshots(),
+  Widget _buildList() {
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance.collection('addons').get(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator(color: widget.primaryColor));
-        }
-        
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.cloud_off, size: 50, color: Colors.grey),
-                const SizedBox(height: 10),
-                const Text('لا توجد مودات في السحابة حالياً'),
-                const SizedBox(height: 5),
-                const Text('اذهب للوحة الأدمن وأضف أول مود!', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
-            ),
-          );
+        List<AddonModel> items = List.from(defaultAddons);
+
+        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+          for (var doc in snapshot.data!.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            items.add(AddonModel(
+              title: data['title'] ?? 'مود جديد',
+              category: data['category'] ?? 'عام',
+              description: data['description'] ?? '',
+            ));
+          }
         }
 
-        final docs = snapshot.data!.docs;
-        final filteredDocs = docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          final title = (data['title'] ?? '').toString().toLowerCase();
-          final category = (data['category'] ?? '').toString().toLowerCase();
-          return title.contains(searchQuery.toLowerCase()) || category.contains(searchQuery.toLowerCase());
-        }).toList();
+        final filtered = items.where((e) => e.title.toLowerCase().contains(searchQuery.toLowerCase())).toList();
 
         return ListView.builder(
-          itemCount: filteredDocs.length,
+          itemCount: filtered.length,
           itemBuilder: (context, index) {
-            final data = filteredDocs[index].data() as Map<String, dynamic>;
-            final title = data['title'] ?? 'بدون عنوان';
-            final category = data['category'] ?? 'عام';
-            final description = data['description'] ?? '';
-
+            final item = filtered[index];
             return Container(
               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: widget.primaryColor.withOpacity(0.2)),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4)),
-                ],
               ),
               child: ListTile(
-                contentPadding: const EdgeInsets.all(12),
                 leading: CircleAvatar(
                   backgroundColor: widget.primaryColor.withOpacity(0.15),
                   child: Icon(Icons.extension, color: widget.primaryColor),
                 ),
-                title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(category, style: TextStyle(color: widget.primaryColor, fontSize: 11)),
-                    const SizedBox(height: 4),
-                    Text(description, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  ],
-                ),
-                trailing: Icon(Icons.cloud_done, color: Colors.green, size: 20),
+                title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(item.description, maxLines: 2, overflow: TextOverflow.ellipsis),
               ),
             );
           },
@@ -402,46 +287,32 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             decoration: BoxDecoration(
               color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
               borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(color: widget.primaryColor.withOpacity(0.15), blurRadius: 10, offset: const Offset(0, 4)),
-              ],
             ),
             child: TextField(
               onChanged: (val) => setState(() => searchQuery = val),
               decoration: InputDecoration(
-                hintText: 'ابحث في السحابة عن مودات، خرائط...',
+                hintText: 'ابحث عن المودات والخرائط...',
                 prefixIcon: Icon(Icons.search, color: widget.primaryColor),
                 border: InputBorder.none,
               ),
             ),
           ),
-          Expanded(child: _buildCloudAddonsList()),
+          Expanded(child: _buildList()),
         ],
       ),
-      const Center(child: Text('المحفوظات الفارغة')),
-      const Center(child: Text('التحميلات الفارغة')),
+      const Center(child: Text('المحفوظات')),
+      const Center(child: Text('التحميلات')),
       ProfileScreen(
         userName: widget.userName,
         primaryColor: widget.primaryColor,
-        isDarkMode: widget.isDarkMode,
       ),
     ];
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kim Addons 🎮 (سحابي)', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Kim Addons 🎮', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: widget.isDarkMode ? const Color(0xFF1A1A1A) : widget.primaryColor,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_active_rounded),
-            onPressed: _showNotificationsDialog,
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: _showSettingsModal,
-          ),
-        ],
       ),
       body: pages[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -461,39 +332,29 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 }
 
-// ------------------- 3. صفحة الملف الشخصي -------------------
+// ------------------- 3. صفحة الملف الشخصي والأدمن -------------------
 class ProfileScreen extends StatelessWidget {
   final String userName;
   final Color primaryColor;
-  final bool isDarkMode;
 
-  const ProfileScreen({
-    super.key,
-    required this.userName,
-    required this.primaryColor,
-    required this.isDarkMode,
-  });
+  const ProfileScreen({super.key, required this.userName, required this.primaryColor});
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+    return Center(
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircleAvatar(
-            radius: 50,
+            radius: 40,
             backgroundColor: primaryColor.withOpacity(0.2),
-            child: Icon(Icons.person, size: 60, color: primaryColor),
+            child: Icon(Icons.person, size: 50, color: primaryColor),
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 10),
           Text(userName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
             onPressed: () {
               Navigator.push(
                 context,
@@ -501,20 +362,7 @@ class ProfileScreen extends StatelessWidget {
               );
             },
             icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
-            label: const Text('لوحة تحكم الأدمن (إضافة مود للسحابة)', style: TextStyle(color: Colors.white)),
-          ),
-          const SizedBox(height: 20),
-          Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            child: Column(
-              children: const [
-                ListTile(
-                  leading: Icon(Icons.cloud_done, color: Colors.green),
-                  title: Text('حالة اتصال السحابة'),
-                  trailing: Text('متصل رسمياً 🟢', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
+            label: const Text('لوحة تحكم الأدمن', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -522,10 +370,8 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-// ------------------- 4. لوحة الأدمن لرفع البيانات لـ Firestore -------------------
 class AdminPanelScreen extends StatefulWidget {
   final Color primaryColor;
-
   const AdminPanelScreen({super.key, required this.primaryColor});
 
   @override
@@ -534,99 +380,36 @@ class AdminPanelScreen extends StatefulWidget {
 
 class _AdminPanelScreenState extends State<AdminPanelScreen> {
   final _titleController = TextEditingController();
-  final _categoryController = TextEditingController();
   final _descController = TextEditingController();
-  final _urlController = TextEditingController();
-  bool isLoading = false;
 
-  void _uploadAddon() async {
-    if (_titleController.text.isEmpty || _descController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى تعبئة الحقول الأساسية')),
-      );
-      return;
-    }
-
-    setState(() => isLoading = true);
-
+  void _add() async {
+    if (_titleController.text.isEmpty) return;
     try {
       await FirebaseFirestore.instance.collection('addons').add({
         'title': _titleController.text,
-        'category': _categoryController.text.isNotEmpty ? _categoryController.text : 'أدوات',
         'description': _descController.text,
-        'downloadUrl': _urlController.text,
-        'createdAt': FieldValue.serverTimestamp(),
+        'category': 'عام',
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم نشر المود بنجاح إلى سحابة Firebase! 🚀')),
-      );
-      Navigator.pop(context);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('خطأ في النشر: $e')),
-      );
-    } finally {
-      setState(() => isLoading = false);
-    }
+    } catch (_) {}
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('لوحة تحكم الأدمن السحابية'),
-        backgroundColor: widget.primaryColor,
-      ),
+      appBar: AppBar(title: const Text('لوحة الأدمن'), backgroundColor: widget.primaryColor),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: ListView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
           children: [
-            const Text('إضافة مود جديد إلى سحابة Firestore', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'اسم المود')),
+            const SizedBox(height: 10),
+            TextField(controller: _descController, decoration: const InputDecoration(labelText: 'الوصف')),
             const SizedBox(height: 20),
-            TextField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                labelText: 'اسم المود (مثلاً: سيف التنين الأسطوري)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 15),
-            TextField(
-              controller: _categoryController,
-              decoration: InputDecoration(
-                labelText: 'التصنيف (أسلحة، خرائط، سكنات)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 15),
-            TextField(
-              controller: _descController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: 'وصف المود',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 15),
-            TextField(
-              controller: _urlController,
-              decoration: InputDecoration(
-                labelText: 'رابط التحميل (.mcaddon)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 30),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: widget.primaryColor,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: isLoading ? null : _uploadAddon,
-              child: isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('نشر للسحابة الآن 🚀', style: TextStyle(fontSize: 16, color: Colors.white)),
+              style: ElevatedButton.styleFrom(backgroundColor: widget.primaryColor),
+              onPressed: _add,
+              child: const Text('نشر المود', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
