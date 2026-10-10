@@ -4,48 +4,20 @@ void main() {
   runApp(const KimAddonsApp());
 }
 
-class KimAddonsApp extends StatefulWidget {
+class KimAddonsApp extends StatelessWidget {
   const KimAddonsApp({super.key});
-
-  @override
-  State<KimAddonsApp> createState() => _KimAddonsAppState();
-}
-
-class _KimAddonsAppState extends State<KimAddonsApp> {
-  bool isDarkMode = true;
-  String currentLanguage = 'العربية';
-
-  void toggleTheme() {
-    setState(() {
-      isDarkMode = !isDarkMode;
-    });
-  }
-
-  void changeLanguage(String lang) {
-    setState(() {
-      currentLanguage = lang;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Kim Addons',
+      title: 'Kim Addons 3D',
       theme: ThemeData(
-        brightness: isDarkMode ? Brightness.dark : Brightness.light,
-        scaffoldBackgroundColor: isDarkMode ? const Color(0xFF121212) : const Color(0xFFF5F5F5),
-        primaryColor: Colors.greenAccent,
-        colorScheme: isDarkMode
-            ? ColorScheme.dark(primary: Colors.greenAccent, secondary: Colors.tealAccent, surface: const Color(0xFF1E1E1E))
-            : ColorScheme.light(primary: Colors.green, secondary: Colors.teal, surface: Colors.white),
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF0D0202),
+        fontFamily: 'Roboto',
       ),
-      home: HomeScreen(
-        isDarkMode: isDarkMode,
-        toggleTheme: toggleTheme,
-        currentLanguage: currentLanguage,
-        changeLanguage: changeLanguage,
-      ),
+      home: const MainNavigationScreen(),
     );
   }
 }
@@ -55,449 +27,310 @@ class AddonItem {
   final String category;
   final String description;
   final IconData icon;
+  final String rating;
   bool isFavorite;
+  bool isDownloaded;
 
   AddonItem({
     required this.title,
     required this.category,
     required this.description,
     required this.icon,
+    this.rating = '4.9',
     this.isFavorite = false,
+    this.isDownloaded = false,
   });
 }
 
-class HomeScreen extends StatefulWidget {
-  final bool isDarkMode;
-  final VoidCallback toggleTheme;
-  final String currentLanguage;
-  final Function(String) changeLanguage;
-
-  const HomeScreen({
-    super.key,
-    required this.isDarkMode,
-    required this.toggleTheme,
-    required this.currentLanguage,
-    required this.changeLanguage,
-  });
+class MainNavigationScreen extends StatefulWidget {
+  const MainNavigationScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  int _currentIndex = 0;
+  String searchQuery = "";
 
   final List<AddonItem> addons = [
     AddonItem(
-      title: 'سيف الحمم البركانية',
-      category: 'أسلحة',
-      description: 'سيف أسطوري يطلق نيران على الوحوش بضغطة واحدة.',
-      icon: Icons.flash_on,
+      title: 'سيف الحمم البركانية 3D',
+      category: 'أسلحة أسطورية',
+      description: 'سيف متطور يطلق نيران بركانية بدمار ثلاثي الأبعاد.',
+      icon: Icons.local_fire_department_rounded,
+      rating: '5.0',
     ),
     AddonItem(
-      title: 'قرية المدى المخفية',
+      title: 'قرية المدى المخفية HD',
       category: 'خرائط بقاء',
-      description: 'خريطة بقاء صعبة مع موارد مخفية وأسرار مثيرة.',
-      icon: Icons.map,
+      description: 'خريطة تفاعلية مع أنفاق سرية وموارد نادرة.',
+      icon: Icons.terrain_rounded,
+      rating: '4.8',
     ),
     AddonItem(
-      title: 'سكن المحارب الأسطوري',
-      category: 'سكينات',
-      description: 'سكن فريد بتصميم مظلم ورهيب لمغامراتك.',
-      icon: Icons.person,
-    ),
-    AddonItem(
-      title: 'تكسشر باكمان الواقعي',
-      category: 'حزم رسوميات',
-      description: 'تعديل رسومات اللعبة لتصبح واقعية وعالية الدقة.',
-      icon: Icons.palette,
+      title: 'سكن المحارب التنين',
+      category: 'سكنات فخمة',
+      description: 'سكن ثلاثي الأبعاد بتأثيرات ضوئية متحركة.',
+      icon: Icons.shield_rounded,
+      rating: '4.9',
     ),
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
-    _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
-    _controller.forward();
-  }
+  Widget build(BuildContext context) {
+    List<AddonItem> filteredAddons = addons.where((item) {
+      return item.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          item.category.toLowerCase().contains(searchQuery.toLowerCase());
+    }).toList();
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+    List<AddonItem> favoriteAddons = addons.where((item) => item.isFavorite).toList();
+    List<AddonItem> downloadedAddons = addons.where((item) => item.isDownloaded).toList();
 
-  void _showDownloadDialog(BuildContext context, AddonItem addon) {
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Download',
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, animation, secondaryAnimation) => const SizedBox.shrink(),
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return ScaleTransition(
-          scale: CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
-          child: FadeTransition(
-            opacity: animation,
-            child: AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: Row(
-                children: [
-                  Icon(addon.icon, color: Colors.greenAccent),
-                  const SizedBox(width: 10),
-                  const Text('تحميل الإضافة'),
-                ],
+    final List<Widget> pages = [
+      Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2A0808), Color(0xFF150404)],
               ),
-              content: Text('هل تريد حقاً بدء تحميل "${addon.title}" لتطبيقها في ماين كرافت؟'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('إلغاء', style: TextStyle(color: Colors.redAccent)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.red.withOpacity(0.25),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
                 ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.greenAccent,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('تم بدء تحميل ${addon.title} بنجاح! 🚀'),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    );
-                  },
-                  child: const Text('تحميل الآن', style: TextStyle(fontWeight: FontWeight.bold)),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.8),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
                 ),
               ],
+              border: Border.all(color: const Color(0xFF8B0000).withOpacity(0.5), width: 1.5),
+            ),
+            child: TextField(
+              onChanged: (val) => setState(() => searchQuery = val),
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                hintText: 'ابحث عن إضافات وخرائط ثلاثية الأبعاد...',
+                hintStyle: TextStyle(color: Colors.white54, fontSize: 13),
+                prefixIcon: Icon(Icons.search_rounded, color: Color(0xFFFF3333)),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              ),
             ),
           ),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kim Addons 🎮', style: TextStyle(fontWeight: FontWeight.bold)),
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SettingsScreen(
-                    isDarkMode: widget.isDarkMode,
-                    toggleTheme: widget.toggleTheme,
-                    currentLanguage: widget.currentLanguage,
-                    changeLanguage: widget.changeLanguage,
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF1b5e20), Color(0xFF004d40)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.sports_esports, size: 40, color: Colors.greenAccent),
-                    SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'متجر إضافات ماين كرافت',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'اختر إضافتك المفضلة وثبتها بضغطة زر!',
-                            style: TextStyle(fontSize: 12, color: Colors.white70),
-                          ),
-                        ],
-                      ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: filteredAddons.length,
+              itemBuilder: (context, index) {
+                final addon = filteredAddons[index];
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF320A0A), Color(0xFF1A0303)],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'الإضافات المتاحة:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.greenAccent),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: addons.length,
-                  itemBuilder: (context, index) {
-                    final addon = addons[index];
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      margin: const EdgeInsets.only(bottom: 14),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.greenAccent.withOpacity(0.2)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFB71C1C).withOpacity(0.25),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
                       ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(12),
-                        leading: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.greenAccent.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(addon.icon, color: Colors.greenAccent, size: 28),
-                        ),
-                        title: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                addon.title,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                addon.isFavorite ? Icons.favorite : Icons.favorite_border,
-                                color: addon.isFavorite ? Colors.redAccent : Colors.grey,
-                                size: 24,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  addon.isFavorite = !addon.isFavorite;
-                                });
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      addon.isFavorite ? 'تم الإضافة إلى المفضلة ❤️' : 'تمت الإزالة من المفضلة 🤍',
-                                    ),
-                                    duration: const Duration(seconds: 1),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.teal.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                addon.category,
-                                style: const TextStyle(color: Colors.tealAccent, fontSize: 11, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              addon.description,
-                              style: const TextStyle(color: Colors.grey, fontSize: 13),
-                            ),
-                            const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.greenAccent.withOpacity(0.2),
-                                  foregroundColor: Colors.greenAccent,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                                icon: const Icon(Icons.download_rounded, size: 18),
-                                label: const Text('تحميل'),
-                                onPressed: () => _showDownloadDialog(context, addon),
-                              ),
-                            ),
-                          ],
-                        ),
+                      const BoxShadow(
+                        color: Colors.black,
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
                       ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// شاشة الإعدادات الجديدة
-class SettingsScreen extends StatelessWidget {
-  final bool isDarkMode;
-  final VoidCallback toggleTheme;
-  final String currentLanguage;
-  final Function(String) changeLanguage;
-
-  const SettingsScreen({
-    super.key,
-    required this.isDarkMode,
-    required this.toggleTheme,
-    required this.currentLanguage,
-    required this.changeLanguage,
-  });
-
-  void _showAuthBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 20,
-            right: 20,
-            top: 25,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'تسجيل الدخول / إنشاء حساب',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 15),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'البريد الإلكتروني',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: 'كلمة المرور',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.greenAccent,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ],
+                    border: Border.all(color: const Color(0xFFD32F2F).withOpacity(0.4), width: 1.2),
                   ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('تم تسجيل الدخول بنجاح! 🎉'), behavior: SnackBarBehavior.floating),
-                    );
-                  },
-                  child: const Text('دخول / تسجيل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('الإعدادات'),
-        centerTitle: true,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // قسم الحساب
-          Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            child: ListTile(
-              leading: const Icon(Icons.person, color: Colors.greenAccent),
-              title: const Text('حساب المستخدم'),
-              subtitle: const Text('تسجيل الدخول أو إنشاء حساب جديد'),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () => _showAuthBottomSheet(context),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // قسم المظهر
-          Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            child: SwitchListTile(
-              secondary: Icon(isDarkMode ? Icons.dark_mode : Icons.light_mode, color: Colors.greenAccent),
-              title: const Text('الوضع الداكن'),
-              value: isDarkMode,
-              onChanged: (value) => toggleTheme(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // قسم اللغة
-          Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            child: ListTile(
-              leading: const Icon(Icons.language, color: Colors.greenAccent),
-              title: const Text('لغة التطبيق'),
-              subtitle: Text(currentLanguage),
-              trailing: DropdownButton<String>(
-                value: currentLanguage,
-                underline: const SizedBox(),
-                items: const [
-                  DropdownMenuItem(value: 'العربية', child: Text('العربية')),
-                  DropdownMenuItem(value: 'English', child: Text('English')),
-                ],
-                onChanged: (value) {
-                  if (value != null) changeLanguage(value);
-                },
-              ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFF1744), Color(0xFF8B0000)],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.redAccent.withOpacity(0.5),
+                                blurRadius: 12,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: Icon(addon.icon, color: Colors.white, size: 30),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFD32F2F).withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFFF5252), width: 0.8),
+                                    ),
+                                    child: Text(
+                                      addon.category,
+                                      style: const TextStyle(color: Color(0xFFFF8A8A), fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                                  Text(addon.rating, style: const TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                addon.title,
+                                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                addon.description,
+                                style: const TextStyle(color: Colors.white60, fontSize: 12),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  InkWell(
+                                    onTap: () {
+                                      setState(() => addon.isDownloaded = true);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('تم تحميل ${addon.title} بنجاح!')),
+                                      );
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12),
+                                        gradient: LinearGradient(
+                                          colors: addon.isDownloaded
+                                              ? [Colors.green.shade700, Colors.green.shade900]
+                                              : [const Color(0xFFFF1744), const Color(0xFFB71C1C)],
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: (addon.isDownloaded ? Colors.green : Colors.red).withOpacity(0.4),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            addon.isDownloaded ? Icons.check_circle_rounded : Icons.file_download_rounded,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            addon.isDownloaded ? 'تم التحميل' : 'تحميل 3D',
+                                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  IconButton(
+                                    icon: Icon(
+                                      addon.isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                      color: addon.isFavorite ? const Color(0xFFFF1744) : Colors.white38,
+                                      size: 26,
+                                    ),
+                                    onPressed: () {
+                                      setState(() => addon.isFavorite = !addon.isFavorite);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
+      ),
+      favoriteAddons.isEmpty
+          ? const Center(child: Text('لا توجد عناصر في المفضلات بعد', style: TextStyle(color: Colors.white38)))
+          : ListView.builder(
+              itemCount: favoriteAddons.length,
+              itemBuilder: (context, i) => ListTile(
+                leading: Icon(favoriteAddons[i].icon, color: Colors.redAccent),
+                title: Text(favoriteAddons[i].title, style: const TextStyle(color: Colors.white)),
+                subtitle: Text(favoriteAddons[i].category, style: const TextStyle(color: Colors.white54)),
+              ),
+            ),
+      downloadedAddons.isEmpty
+          ? const Center(child: Text('لم تقم بتحميل أي إضافة حتى الآن', style: TextStyle(color: Colors.white38)))
+          : ListView.builder(
+              itemCount: downloadedAddons.length,
+              itemBuilder: (context, i) => ListTile(
+                leading: Icon(downloadedAddons[i].icon, color: Colors.greenAccent),
+                title: Text(downloadedAddons[i].title, style: const TextStyle(color: Colors.white)),
+                subtitle: const Text('جاهز للتثبيت في ماين كرافت', style: TextStyle(color: Colors.greenAccent)),
+              ),
+            ),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Kim Addons 🎮', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+        centerTitle: true,
+        backgroundColor: const Color(0xFF150404),
+        elevation: 10,
+        shadowColor: Colors.red.withOpacity(0.5),
+      ),
+      body: pages[_currentIndex],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.red.withOpacity(0.2),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) => setState(() => _currentIndex = index),
+          backgroundColor: const Color(0xFF120303),
+          selectedItemColor: const Color(0xFFFF3333),
+          unselectedItemColor: Colors.white38,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.style_rounded), label: 'الرئيسية 3D'),
+            BottomNavigationBarItem(icon: Icon(Icons.favorite_rounded), label: 'المفضلات'),
+            BottomNavigationBarItem(icon: Icon(Icons.download_for_offline_rounded), label: 'التحميلات'),
+          ],
+        ),
       ),
     );
   }
