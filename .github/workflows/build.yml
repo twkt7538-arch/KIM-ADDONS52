@@ -21,22 +21,14 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.6'
+          flutter-version: '3.22.2'
           channel: 'stable'
-
-      - name: Force Fix Compile SDK to 36
-        run: |
-          sed -i 's/compileSdk.*/compileSdk 36/g' android/app/build.gradle || true
-          sed -i 's/targetSdk.*/targetSdk 36/g' android/app/build.gradle || true
 
       - name: Get Dependencies
         run: flutter pub get
 
-      - name: Clean and Build APK
-        run: |
-          cd android && ./gradlew clean || true
-          cd ..
-          flutter build apk --release --no-tree-shake-icons
+      - name: Build APK
+        run: flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
