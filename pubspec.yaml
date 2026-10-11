@@ -1,5 +1,5 @@
 name: kim_addons
-description: "A professional 3D Minecraft Bedrock Addons application."
+description: Kim Addons Minecraft App
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,15 +9,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  firebase_core: ^3.0.0
-  cloud_firestore: ^5.0.0
+  image_picker: ^1.0.7
+  file_picker: ^8.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^2.0.0
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/
