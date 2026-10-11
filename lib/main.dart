@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +16,6 @@ class AddonModel {
   final String fileType;
   final String fileSize;
   final String? imagePath;
-  final String? filePath;
 
   AddonModel({
     required this.id,
@@ -28,7 +26,6 @@ class AddonModel {
     required this.fileType,
     required this.fileSize,
     this.imagePath,
-    this.filePath,
   });
 }
 
@@ -562,7 +559,7 @@ class ProfileScreen extends StatelessWidget {
               );
             },
             icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
-            label: const Text('إضافة مود جديد من الجهاز 📂', style: TextStyle(color: Colors.white)),
+            label: const Text('إضافة مود جديد 📂', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -587,36 +584,14 @@ class _AdminAddonPanelState extends State<AdminAddonPanel> {
   final _versionController = TextEditingController(text: 'v1.0.0');
   
   String? _selectedImagePath;
-  String? _selectedFilePath;
-  String _fileTypeName = '.mcaddon';
-  String _fileSizeName = '10.0 MB';
+  String _selectedFileType = '.mcaddon';
+  String _fileSize = '12.0 MB';
 
   Future<void> _pickImage() async {
     final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         _selectedImagePath = pickedFile.path;
-      });
-    }
-  }
-
-  Future<void> _pickFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
-    if (result != null && result.files.single.path != null) {
-      setState(() {
-        _selectedFilePath = result.files.single.path;
-        final name = result.files.single.name;
-        if (name.endsWith('.mcpack')) {
-          _fileTypeName = '.mcpack';
-        } else if (name.endsWith('.mcworld')) {
-          _fileTypeName = '.mcworld';
-        } else {
-          _fileTypeName = '.mcaddon';
-        }
-        
-        final bytes = result.files.single.size;
-        final mb = (bytes / (1024 * 1024)).toStringAsFixed(1);
-        _fileSizeName = '$mb MB';
       });
     }
   }
@@ -635,15 +610,14 @@ class _AdminAddonPanelState extends State<AdminAddonPanel> {
       category: _categoryController.text.isNotEmpty ? _categoryController.text : 'عام',
       description: _descController.text.isNotEmpty ? _descController.text : 'بدون وصف',
       version: _versionController.text.isNotEmpty ? _versionController.text : 'v1.0.0',
-      fileType: _fileTypeName,
-      fileSize: _fileSizeName,
+      fileType: _selectedFileType,
+      fileSize: _fileSize,
       imagePath: _selectedImagePath,
-      filePath: _selectedFilePath,
     );
 
     widget.onAdd(newAddon);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تمت إضافة المود وحفظه بنجاح! 🚀')),
+      const SnackBar(content: Text('تمت إضافة المود بنجاح! 🚀')),
     );
     Navigator.pop(context);
   }
@@ -652,7 +626,7 @@ class _AdminAddonPanelState extends State<AdminAddonPanel> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('إضافة مود من الهاتف'),
+        title: const Text('إضافة مود جديد'),
         backgroundColor: widget.primaryColor,
       ),
       body: Padding(
@@ -679,19 +653,26 @@ class _AdminAddonPanelState extends State<AdminAddonPanel> {
               maxLines: 3,
               decoration: const InputDecoration(labelText: 'وصف المود'),
             ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _selectedFileType,
+              decoration: const InputDecoration(labelText: 'نوع الملف'),
+              items: ['.mcaddon', '.mcpack', '.mcworld'].map((String type) {
+                return DropdownMenuItem<String>(
+                  value: type,
+                  child: Text(type),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) setState(() => _selectedFileType = val);
+              },
+            ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey),
               onPressed: _pickImage,
               icon: const Icon(Icons.image, color: Colors.white),
               label: Text(_selectedImagePath == null ? 'اختر صورة المود من المعرض 🖼️' : 'تم اختيار الصورة بنجاح ✅', style: const TextStyle(color: Colors.white)),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-              onPressed: _pickFile,
-              icon: const Icon(Icons.insert_drive_file, color: Colors.white),
-              label: Text(_selectedFilePath == null ? 'اختر ملف المود (.mcaddon / .mcpack) 📁' : 'تم اختيار الملف بنجاح ✅', style: const TextStyle(color: Colors.white)),
             ),
             const SizedBox(height: 30),
             ElevatedButton(
