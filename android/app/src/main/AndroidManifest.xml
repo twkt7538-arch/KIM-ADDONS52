@@ -2,8 +2,8 @@
     <application
         android:label="Kim Addons"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round">
+        android:icon="@android:ic_menu_compass"
+        android:roundIcon="@android:ic_menu_compass">
         <activity
             android:name=".MainActivity"
             android:exported="true"
