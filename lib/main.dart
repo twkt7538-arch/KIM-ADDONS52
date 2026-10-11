@@ -5,6 +5,25 @@ void main() {
   runApp(const KimAddonsApp());
 }
 
+// قائمة عامة للمودات لضمان عمل لوحة الأدمن والصفحة الرئيسية بسلاسة
+List<AddonModel> globalAddons = [
+  AddonModel(
+    title: 'سيف الحمم البركانية',
+    category: 'أسلحة أسطورية',
+    description: 'سيف متطور يطلق نيران بركانية بدمار ثلاثي الأبعاد.',
+  ),
+  AddonModel(
+    title: 'قرية المدى المخفية',
+    category: 'خرائط بقاء',
+    description: 'خريطة تفاعلية مع أنفاق سرية وموارد نادرة.',
+  ),
+  AddonModel(
+    title: 'سكن المحارب التنين',
+    category: 'سكنات فخمة',
+    description: 'سكن ثلاثي الأبعاد بتأثيرات ضوئية متحركة.',
+  ),
+];
+
 class KimAddonsApp extends StatefulWidget {
   const KimAddonsApp({super.key});
 
@@ -82,24 +101,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   String searchQuery = "";
 
-  static List<AddonModel> allAddons = [
-    AddonModel(
-      title: 'سيف الحمم البركانية',
-      category: 'أسلحة أسطورية',
-      description: 'سيف متطور يطلق نيران بركانية بدمار ثلاثي الأبعاد.',
-    ),
-    AddonModel(
-      title: 'قرية المدى المخفية',
-      category: 'خرائط بقاء',
-      description: 'خريطة تفاعلية مع أنفاق سرية وموارد نادرة.',
-    ),
-    AddonModel(
-      title: 'سكن المحارب التنين',
-      category: 'سكنات فخمة',
-      description: 'سكن ثلاثي الأبعاد بتأثيرات ضوئية متحركة.',
-    ),
-  ];
-
   void _showSettingsModal() {
     showModalBottomSheet(
       context: context,
@@ -160,7 +161,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   Widget _buildList() {
-    final filtered = allAddons.where((e) => e.title.toLowerCase().contains(searchQuery.toLowerCase())).toList();
+    final filtered = globalAddons.where((e) => e.title.toLowerCase().contains(searchQuery.toLowerCase())).toList();
 
     return ListView.builder(
       itemCount: filtered.length,
@@ -305,7 +306,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
 
   void _add() {
     if (_titleController.text.isEmpty) return;
-    MainNavigationScreenState.allAddons.add(
+    globalAddons.add(
       AddonModel(
         title: _titleController.text,
         category: 'إضافة جديدة',
@@ -342,6 +343,3 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     );
   }
 }
-
-// Helper class for state reference
-class MainNavigationScreenState {}
