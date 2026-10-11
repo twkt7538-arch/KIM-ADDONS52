@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,16 +13,22 @@ class AddonModel {
   final String title;
   final String category;
   final String description;
-  final String imageUrl;
-  final String downloadLink;
+  final String version;
+  final String fileType;
+  final String fileSize;
+  final String? imagePath;
+  final String? filePath;
 
   AddonModel({
     required this.id,
     required this.title,
     required this.category,
     required this.description,
-    required this.imageUrl,
-    required this.downloadLink,
+    required this.version,
+    required this.fileType,
+    required this.fileSize,
+    this.imagePath,
+    this.filePath,
   });
 }
 
@@ -100,8 +109,26 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   String searchQuery = "";
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   
-  // قائمة المودات المحلية الثابتة أثناء تشغيل التطبيق
-  static final List<AddonModel> globalAddons = [];
+  static final List<AddonModel> globalAddons = [
+    AddonModel(
+      id: '1',
+      title: 'مود الأسلحة الأسطورية',
+      category: 'أسلحة ومعدات',
+      description: 'أقوى مود أسلحة لماين كرافت بيدروك مع مؤثرات بصرية مذهلة وحركات واقعية.',
+      version: 'v1.2.0',
+      fileType: '.mcaddon',
+      fileSize: '14.5 MB',
+    ),
+    AddonModel(
+      id: '2',
+      title: 'عالم المغامرات المرعبة',
+      category: 'عوالم وخرائط',
+      description: 'خريطة بقاء مليئة بالألغاز المرعبة والأحاجي الصعبة.',
+      version: 'v2.0.1',
+      fileType: '.mcworld',
+      fileSize: '45.2 MB',
+    ),
+  ];
 
   void _addNewAddon(AddonModel addon) {
     setState(() {
@@ -128,7 +155,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             child: TextField(
               onChanged: (val) => setState(() => searchQuery = val),
               decoration: InputDecoration(
-                hintText: 'ابحث عن المودات والخرائط المحلية...',
+                hintText: 'ابحث عن المودات والخرائط...',
                 prefixIcon: Icon(Icons.search, color: widget.primaryColor),
                 border: InputBorder.none,
               ),
@@ -138,7 +165,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             child: filteredAddons.isEmpty
                 ? const Center(
                     child: Text(
-                      'لا توجد مودات محلية حالياً.\nأضف موداً جديداً من خيار "حسابي"!',
+                      'لا توجد مودات حالياً.',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 16, color: Colors.grey),
                     ),
@@ -155,37 +182,52 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                           border: Border.all(color: widget.primaryColor.withOpacity(0.2)),
                         ),
                         child: ListTile(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AddonDetailsScreen(
+                                  addon: item,
+                                  primaryColor: widget.primaryColor,
+                                  isDarkMode: widget.isDarkMode,
+                                ),
+                              ),
+                            );
+                          },
                           contentPadding: const EdgeInsets.all(12),
                           leading: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: item.imageUrl.isNotEmpty
-                                ? Image.network(
-                                    item.imageUrl,
-                                    width: 50,
-                                    height: 50,
+                            borderRadius: BorderRadius.circular(12),
+                            child: item.imagePath != null
+                                ? Image.file(
+                                    File(item.imagePath!),
+                                    width: 55,
+                                    height: 55,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) =>
-                                        _defaultImageIcon(),
                                   )
-                                : _defaultImageIcon(),
+                                : Container(
+                                    width: 55,
+                                    height: 55,
+                                    color: widget.primaryColor.withOpacity(0.15),
+                                    child: Icon(Icons.extension, color: widget.primaryColor, size: 30),
+                                  ),
                           ),
                           title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(item.category, style: TextStyle(color: widget.primaryColor, fontSize: 11)),
                               const SizedBox(height: 4),
-                              Text(item.description, maxLines: 2, overflow: TextOverflow.ellipsis),
+                              Row(
+                                children: [
+                                  Text(item.category, style: TextStyle(color: widget.primaryColor, fontSize: 11)),
+                                  const SizedBox(width: 8),
+                                  Text('• ${item.version}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(item.description, maxLines: 1, overflow: TextOverflow.ellipsis),
                             ],
                           ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.download_rounded, color: Colors.green),
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('رابط التحميل: ${item.downloadLink}')),
-                              );
-                            },
-                          ),
+                          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: widget.primaryColor),
                         ),
                       );
                     },
@@ -305,15 +347,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 
-  Widget _defaultImageIcon() {
-    return Container(
-      width: 50,
-      height: 50,
-      color: Colors.grey.withOpacity(0.2),
-      child: const Icon(Icons.extension, size: 28),
-    );
-  }
-
   Widget _colorOption(Color color) {
     return GestureDetector(
       onTap: () => widget.changePrimaryColor(color),
@@ -328,6 +361,168 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             width: 3,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class AddonDetailsScreen extends StatefulWidget {
+  final AddonModel addon;
+  final Color primaryColor;
+  final bool isDarkMode;
+
+  const AddonDetailsScreen({
+    super.key,
+    required this.addon,
+    required this.primaryColor,
+    required this.isDarkMode,
+  });
+
+  @override
+  State<AddonDetailsScreen> createState() => _AddonDetailsScreenState();
+}
+
+class _AddonDetailsScreenState extends State<AddonDetailsScreen> {
+  bool isDownloading = false;
+  double downloadProgress = 0.0;
+
+  void _startDownload() async {
+    setState(() {
+      isDownloading = true;
+      downloadProgress = 0.0;
+    });
+
+    for (int i = 1; i <= 10; i++) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      if (!mounted) return;
+      setState(() {
+        downloadProgress = i / 10.0;
+      });
+    }
+
+    setState(() {
+      isDownloading = false;
+    });
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تم اكتمال التنزيل بنجاح وجاهز للتثبيت في ماين كرافت! 🎮')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.addon.title),
+        backgroundColor: widget.primaryColor,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: widget.addon.imagePath != null
+                    ? Image.file(
+                        File(widget.addon.imagePath!),
+                        width: 120,
+                        height: 120,
+                        fit: BoxFit.cover,
+                      )
+                    : Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: widget.primaryColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Icon(Icons.extension, size: 60, color: widget.primaryColor),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Center(
+              child: Text(
+                widget.addon.title,
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _infoCard('الإصدار', widget.addon.version, Icons.update),
+                _infoCard('النوع', widget.addon.fileType, Icons.insert_drive_file),
+                _infoCard('الحجم', widget.addon.fileSize, Icons.sd_storage),
+              ],
+            ),
+            const SizedBox(height: 25),
+            const Text('التصنيف:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 6),
+            Text(widget.addon.category, style: TextStyle(color: widget.primaryColor, fontSize: 15)),
+            const SizedBox(height: 20),
+            const Text('وصف المود:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 8),
+            Text(
+              widget.addon.description,
+              style: const TextStyle(fontSize: 15, height: 1.5, color: Colors.grey),
+            ),
+            const SizedBox(height: 40),
+            if (isDownloading) ...[
+              LinearProgressIndicator(
+                value: downloadProgress,
+                color: widget.primaryColor,
+                backgroundColor: Colors.grey.withOpacity(0.2),
+                minHeight: 10,
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: Text(
+                  'جاري التنزيل... ${(downloadProgress * 100).toInt()}%',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ] else ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: widget.primaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  ),
+                  onPressed: _startDownload,
+                  icon: const Icon(Icons.download_rounded, color: Colors.white),
+                  label: const Text('تحميل المود وتثبيته 📥', style: TextStyle(color: Colors.white, fontSize: 16)),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoCard(String title, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: widget.primaryColor.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: widget.primaryColor, size: 22),
+          const SizedBox(height: 6),
+          Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          const SizedBox(height: 2),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        ],
       ),
     );
   }
@@ -351,7 +546,7 @@ class ProfileScreen extends StatelessWidget {
             child: Icon(Icons.person, size: 50, color: primaryColor),
           ),
           const SizedBox(height: 10),
-          const Text('إدارة المودات المحلية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('لوحة التحكم الخاصة (المطور)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
@@ -359,15 +554,15 @@ class ProfileScreen extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => LocalAddonPanel(
+                  builder: (context) => AdminAddonPanel(
                     primaryColor: primaryColor,
                     onAdd: onAddAddon,
                   ),
                 ),
               );
             },
-            icon: const Icon(Icons.add_box, color: Colors.white),
-            label: const Text('إضافة مود جديد محلياً 📂', style: TextStyle(color: Colors.white)),
+            icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
+            label: const Text('إضافة مود جديد من الجهاز 📂', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -375,24 +570,58 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-class LocalAddonPanel extends StatefulWidget {
+class AdminAddonPanel extends StatefulWidget {
   final Color primaryColor;
   final Function(AddonModel) onAdd;
 
-  const LocalAddonPanel({super.key, required this.primaryColor, required this.onAdd});
+  const AdminAddonPanel({super.key, required this.primaryColor, required this.onAdd});
 
   @override
-  State<LocalAddonPanel> createState() => _LocalAddonPanelState();
+  State<AdminAddonPanel> createState() => _AdminAddonPanelState();
 }
 
-class _LocalAddonPanelState extends State<LocalAddonPanel> {
+class _AdminAddonPanelState extends State<AdminAddonPanel> {
   final _titleController = TextEditingController();
   final _categoryController = TextEditingController();
   final _descController = TextEditingController();
-  final _imageController = TextEditingController();
-  final _linkController = TextEditingController();
+  final _versionController = TextEditingController(text: 'v1.0.0');
+  
+  String? _selectedImagePath;
+  String? _selectedFilePath;
+  String _fileTypeName = '.mcaddon';
+  String _fileSizeName = '10.0 MB';
 
-  void _saveLocalAddon() {
+  Future<void> _pickImage() async {
+    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImagePath = pickedFile.path;
+      });
+    }
+  }
+
+  Future<void> _pickFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles();
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        _selectedFilePath = result.files.single.path;
+        final name = result.files.single.name;
+        if (name.endsWith('.mcpack')) {
+          _fileTypeName = '.mcpack';
+        } else if (name.endsWith('.mcworld')) {
+          _fileTypeName = '.mcworld';
+        } else {
+          _fileTypeName = '.mcaddon';
+        }
+        
+        final bytes = result.files.single.size;
+        final mb = (bytes / (1024 * 1024)).toStringAsFixed(1);
+        _fileSizeName = '$mb MB';
+      });
+    }
+  }
+
+  void _saveAddon() {
     if (_titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('يرجى إدخال اسم المود على الأقل')),
@@ -405,13 +634,16 @@ class _LocalAddonPanelState extends State<LocalAddonPanel> {
       title: _titleController.text,
       category: _categoryController.text.isNotEmpty ? _categoryController.text : 'عام',
       description: _descController.text.isNotEmpty ? _descController.text : 'بدون وصف',
-      imageUrl: _imageController.text,
-      downloadLink: _linkController.text.isNotEmpty ? _linkController.text : 'https://example.com',
+      version: _versionController.text.isNotEmpty ? _versionController.text : 'v1.0.0',
+      fileType: _fileTypeName,
+      fileSize: _fileSizeName,
+      imagePath: _selectedImagePath,
+      filePath: _selectedFilePath,
     );
 
     widget.onAdd(newAddon);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تمت إضافة المود بنجاح! 🚀')),
+      const SnackBar(content: Text('تمت إضافة المود وحفظه بنجاح! 🚀')),
     );
     Navigator.pop(context);
   }
@@ -420,7 +652,7 @@ class _LocalAddonPanelState extends State<LocalAddonPanel> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('إضافة مود محلي جديد'),
+        title: const Text('إضافة مود من الهاتف'),
         backgroundColor: widget.primaryColor,
       ),
       body: Padding(
@@ -438,19 +670,28 @@ class _LocalAddonPanelState extends State<LocalAddonPanel> {
             ),
             const SizedBox(height: 12),
             TextField(
+              controller: _versionController,
+              decoration: const InputDecoration(labelText: 'رقم الإصدار (مثل v1.0.0)'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
               controller: _descController,
               maxLines: 3,
               decoration: const InputDecoration(labelText: 'وصف المود'),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _imageController,
-              decoration: const InputDecoration(labelText: 'رابط الصورة المصغرة (Image URL)'),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey),
+              onPressed: _pickImage,
+              icon: const Icon(Icons.image, color: Colors.white),
+              label: Text(_selectedImagePath == null ? 'اختر صورة المود من المعرض 🖼️' : 'تم اختيار الصورة بنجاح ✅', style: const TextStyle(color: Colors.white)),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _linkController,
-              decoration: const InputDecoration(labelText: 'رابط التحميل المباشر (.mcaddon)'),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+              onPressed: _pickFile,
+              icon: const Icon(Icons.insert_drive_file, color: Colors.white),
+              label: Text(_selectedFilePath == null ? 'اختر ملف المود (.mcaddon / .mcpack) 📁' : 'تم اختيار الملف بنجاح ✅', style: const TextStyle(color: Colors.white)),
             ),
             const SizedBox(height: 30),
             ElevatedButton(
@@ -458,8 +699,8 @@ class _LocalAddonPanelState extends State<LocalAddonPanel> {
                 backgroundColor: widget.primaryColor,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              onPressed: _saveLocalAddon,
-              child: const Text('إضافة المود 💾', style: TextStyle(color: Colors.white, fontSize: 16)),
+              onPressed: _saveAddon,
+              child: const Text('نشر المود في التطبيق 💾', style: TextStyle(color: Colors.white, fontSize: 16)),
             ),
           ],
         ),
