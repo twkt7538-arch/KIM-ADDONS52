@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,6 +12,7 @@ class AddonModel {
   final String title;
   final String category;
   final String description;
+  final String imageUrl;
   final String downloadLink;
 
   AddonModel({
@@ -19,19 +20,27 @@ class AddonModel {
     required this.title,
     required this.category,
     required this.description,
+    required this.imageUrl,
     required this.downloadLink,
   });
 
-  factory AddonModel.fromDoc(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return AddonModel(
-      id: doc.id,
-      title: data['title'] ?? '',
-      category: data['category'] ?? 'عام',
-      description: data['description'] ?? '',
-      downloadLink: data['downloadLink'] ?? '',
-    );
-  }
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'category': category,
+        'description': description,
+        'imageUrl': imageUrl,
+        'downloadLink': downloadLink,
+      };
+
+  factory AddonModel.fromJson(Map<String, dynamic> json) => AddonModel(
+        id: json['id'] ?? '',
+        title: json['title'] ?? '',
+        category: json['category'] ?? 'عام',
+        description: json['description'] ?? '',
+        imageUrl: json['imageUrl'] ?? '',
+        downloadLink: json['downloadLink'] ?? '',
+      );
 }
 
 class KimAddonsApp extends StatefulWidget {
@@ -46,29 +55,6 @@ class _KimAddonsAppState extends State<KimAddonsApp> {
   bool notificationsEnabled = true;
   Color primaryThemeColor = const Color(0xFFC62828);
   String currentLanguage = 'العربية';
-  bool _initialized = false;
-  bool _error = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeFirebase();
-  }
-
-  void _initializeFirebase() async {
-    try {
-      await Firebase.initializeApp();
-      setState(() {
-        _initialized = true;
-      });
-    } catch (e) {
-      debugPrint("Firebase init error: $e");
-      setState(() {
-        _error = true;
-        _initialized = true; // نفتح التطبيق حتى لو حدث خطأ لكي لا تبقى الشاشة رمادية
-      });
-    }
-  }
 
   void toggleTheme() => setState(() => isDarkMode = !isDarkMode);
   void toggleNotifications() => setState(() => notificationsEnabled = !notificationsEnabled);
@@ -89,22 +75,16 @@ class _KimAddonsAppState extends State<KimAddonsApp> {
             : ColorScheme.light(primary: primaryThemeColor),
         fontFamily: 'Roboto',
       ),
-      home: !_initialized
-          ? Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(color: primaryThemeColor),
-              ),
-            )
-          : MainNavigationScreen(
-              isDarkMode: isDarkMode,
-              notificationsEnabled: notificationsEnabled,
-              primaryColor: primaryThemeColor,
-              currentLanguage: currentLanguage,
-              toggleTheme: toggleTheme,
-              toggleNotifications: toggleNotifications,
-              changePrimaryColor: changePrimaryColor,
-              changeLanguage: changeLanguage,
-            ),
+      home: MainNavigationScreen(
+        isDarkMode: isDarkMode,
+        notificationsEnabled: notificationsEnabled,
+        primaryColor: primaryThemeColor,
+        currentLanguage: currentLanguage,
+        toggleTheme: toggleTheme,
+        toggleNotifications: toggleNotifications,
+        changePrimaryColor: changePrimaryColor,
+        changeLanguage: changeLanguage,
+      ),
     );
   }
 }
@@ -139,77 +119,44 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   String searchQuery = "";
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  List<AddonModel> localAddons = [];
 
-  Widget _buildCloudAddonsList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('addons').snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text('خطأ في جلب البيانات: ${snapshot.error}'));
-        }
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+  @override
+  void initState() {
+    super.initState();
+    _loadAddons();
+  }
 
-        final docs = snapshot.data?.docs ?? [];
-        List<AddonModel> addons = docs.map((doc) => AddonModel.fromDoc(doc)).toList();
+  Future<void> _loadAddons() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? addonsString = prefs.getString('local_addons');
+    if (addonsString != null) {
+      final List decoded = jsonDecode(addonsString);
+      setState(() {
+        localAddons = decoded.map((e) => AddonModel.fromJson(e)).toList();
+      });
+    }
+  }
 
-        final filtered = addons.where((e) => e.title.toLowerCase().contains(searchQuery.toLowerCase())).toList();
+  Future<void> _saveAddons() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String encoded = jsonEncode(localAddons.map((e) => e.toJson()).toList());
+    await prefs.setString('local_addons', encoded);
+  }
 
-        if (filtered.isEmpty) {
-          return const Center(
-            child: Text(
-              'لا توجد مودات حالياً.\nأضف موداً جديداً من لوحة الأدمن!',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-          );
-        }
-
-        return ListView.builder(
-          itemCount: filtered.length,
-          itemBuilder: (context, index) {
-            final item = filtered[index];
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: widget.primaryColor.withOpacity(0.2)),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(12),
-                leading: CircleAvatar(
-                  backgroundColor: widget.primaryColor.withOpacity(0.15),
-                  child: Icon(Icons.extension, color: widget.primaryColor),
-                ),
-                title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item.category, style: TextStyle(color: widget.primaryColor, fontSize: 11)),
-                    const SizedBox(height: 4),
-                    Text(item.description, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  ],
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.download_rounded, color: Colors.green),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('رابط التحميل: ${item.downloadLink}')),
-                    );
-                  },
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+  void _add这位NewAddon(AddonModel addon) {
+    setState(() {
+      localAddons.add(addon);
+    });
+    _saveAddons();
   }
 
   @override
   Widget build(BuildContext context) {
+    final filteredAddons = localAddons
+        .where((e) => e.title.toLowerCase().contains(searchQuery.toLowerCase()))
+        .toList();
+
     final List<Widget> pages = [
       Column(
         children: [
@@ -223,18 +170,77 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             child: TextField(
               onChanged: (val) => setState(() => searchQuery = val),
               decoration: InputDecoration(
-                hintText: 'ابحث عن المودات والخرائط...',
+                hintText: 'ابحث عن المودات والخرائط المحلية...',
                 prefixIcon: Icon(Icons.search, color: widget.primaryColor),
                 border: InputBorder.none,
               ),
             ),
           ),
-          Expanded(child: _buildCloudAddonsList()),
+          Expanded(
+            child: filteredAddons.isEmpty
+                ? const Center(
+                    child: Text(
+                      'لا توجد مودات محلية حالياً.\nأضف موداً جديداً من خيار "حسابي"!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: filteredAddons.length,
+                    itemBuilder: (context, index) {
+                      final item = filteredAddons[index];
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: widget.primaryColor.withOpacity(0.2)),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(12),
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: item.imageUrl.isNotEmpty
+                                ? Image.network(
+                                    item.imageUrl,
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        _defaultImageIcon(),
+                                  )
+                                : _defaultImageIcon(),
+                          ),
+                          title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(item.category, style: TextStyle(color: widget.primaryColor, fontSize: 11)),
+                              const SizedBox(height: 4),
+                              Text(item.description, maxLines: 2, overflow: TextOverflow.ellipsis),
+                            ],
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.download_rounded, color: Colors.green),
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('رابط التحميل: ${item.downloadLink}')),
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
         ],
       ),
       const Center(child: Text('المحفوظات')),
       const Center(child: Text('التحميلات')),
-      ProfileScreen(primaryColor: widget.primaryColor),
+      ProfileScreen(
+        primaryColor: widget.primaryColor,
+        onAddAddon: _add这位NewAddon,
+      ),
     ];
 
     return Scaffold(
@@ -341,6 +347,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 
+  Widget _defaultImageIcon() {
+    return Container(
+      width: 50,
+      height: 50,
+      color: Colors.grey.withOpacity(0.2),
+      child: const Icon(Icons.extension, size: 28),
+    );
+  }
+
   Widget _colorOption(Color color) {
     return GestureDetector(
       onTap: () => widget.changePrimaryColor(color),
@@ -362,8 +377,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
 class ProfileScreen extends StatelessWidget {
   final Color primaryColor;
+  final Function(AddonModel) onAddAddon;
 
-  const ProfileScreen({super.key, required this.primaryColor});
+  const ProfileScreen({super.key, required this.primaryColor, required this.onAddAddon});
 
   @override
   Widget build(BuildContext context) {
@@ -377,7 +393,7 @@ class ProfileScreen extends StatelessWidget {
             child: Icon(Icons.person, size: 50, color: primaryColor),
           ),
           const SizedBox(height: 10),
-          const Text('لوحة إدارة السحابة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('إدارة المودات المحلية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
@@ -385,12 +401,15 @@ class ProfileScreen extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => CloudAdminPanel(primaryColor: primaryColor),
+                  builder: (context) => LocalAddonPanel(
+                    primaryColor: primaryColor,
+                    onAdd: onAddAddon,
+                  ),
                 ),
               );
             },
-            icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
-            label: const Text('لوحة الأدمن (نشر مود سحابياً)', style: TextStyle(color: Colors.white)),
+            icon: const Icon(Icons.add_box, color: Colors.white),
+            label: const Text('إضافة مود جديد محلياً 📂', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -398,60 +417,52 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-class CloudAdminPanel extends StatefulWidget {
+class LocalAddonPanel extends StatefulWidget {
   final Color primaryColor;
+  final Function(AddonModel) onAdd;
 
-  const CloudAdminPanel({super.key, required this.primaryColor});
+  const LocalAddonPanel({super.key, required this.primaryColor, required this.onAdd});
 
   @override
-  State<CloudAdminPanel> createState() => _CloudAdminPanelState();
+  State<LocalAddonPanel> createState() => _LocalAddonPanelState();
 }
 
-class _CloudAdminPanelState extends State<CloudAdminPanel> {
+class _LocalAddonPanelState extends State<LocalAddonPanel> {
   final _titleController = TextEditingController();
   final _categoryController = TextEditingController();
   final _descController = TextEditingController();
+  final _imageController = TextEditingController();
   final _linkController = TextEditingController();
-  bool isLoading = false;
 
-  void _uploadToCloud() async {
+  void _saveLocalAddon() {
     if (_titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى إدخال اسم المود')),
+        const SnackBar(content: Text('يرجى إدخال اسم المود على الأقل')),
       );
       return;
     }
 
-    setState(() => isLoading = true);
+    final newAddon = AddonModel(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: _titleController.text,
+      category: _categoryController.text.isNotEmpty ? _categoryController.text : 'عام',
+      description: _descController.text.isNotEmpty ? _descController.text : 'بدون وصف',
+      imageUrl: _imageController.text,
+      downloadLink: _linkController.text.isNotEmpty ? _linkController.text : 'https://example.com',
+    );
 
-    try {
-      await FirebaseFirestore.instance.collection('addons').add({
-        'title': _titleController.text,
-        'category': _categoryController.text.isNotEmpty ? _categoryController.text : 'عام',
-        'description': _descController.text.isNotEmpty ? _descController.text : 'بدون وصف',
-        'downloadLink': _linkController.text.isNotEmpty ? _linkController.text : 'https://example.com',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم نشر المود سحابياً بنجاح! 🚀')),
-      );
-      Navigator.pop(context);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('خطأ أثناء النشر: $e')),
-      );
-      setState(() => isLoading = false);
-    }
+    widget.onAdd(newAddon);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تم حفظ المود محلياً بنجاح! 🚀')),
+    );
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('لوحة الأدمن السحابية'),
+        title: const Text('إضافة مود محلي جديد'),
         backgroundColor: widget.primaryColor,
       ),
       body: Padding(
@@ -475,20 +486,23 @@ class _CloudAdminPanelState extends State<CloudAdminPanel> {
             ),
             const SizedBox(height: 12),
             TextField(
+              controller: _imageController,
+              decoration: const InputDecoration(labelText: 'رابط الصورة المصغرة (Image URL)'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
               controller: _linkController,
               decoration: const InputDecoration(labelText: 'رابط التحميل المباشر (.mcaddon)'),
             ),
             const SizedBox(height: 30),
-            isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: widget.primaryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    onPressed: _uploadToCloud,
-                    child: const Text('نشر المود سحابياً ☁️🚀', style: TextStyle(color: Colors.white, fontSize: 16)),
-                  ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: widget.primaryColor,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              onPressed: _saveLocalAddon,
+              child: const Text('حفظ ونشر محلياً 💾', style: TextStyle(color: Colors.white, fontSize: 16)),
+            ),
           ],
         ),
       ),
