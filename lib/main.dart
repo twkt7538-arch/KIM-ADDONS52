@@ -2,13 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    debugPrint("Firebase init error: $e");
-  }
   runApp(const KimAddonsApp());
 }
 
@@ -51,6 +46,29 @@ class _KimAddonsAppState extends State<KimAddonsApp> {
   bool notificationsEnabled = true;
   Color primaryThemeColor = const Color(0xFFC62828);
   String currentLanguage = 'العربية';
+  bool _initialized = false;
+  bool _error = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeFirebase();
+  }
+
+  void _initializeFirebase() async {
+    try {
+      await Firebase.initializeApp();
+      setState(() {
+        _initialized = true;
+      });
+    } catch (e) {
+      debugPrint("Firebase init error: $e");
+      setState(() {
+        _error = true;
+        _initialized = true; // نفتح التطبيق حتى لو حدث خطأ لكي لا تبقى الشاشة رمادية
+      });
+    }
+  }
 
   void toggleTheme() => setState(() => isDarkMode = !isDarkMode);
   void toggleNotifications() => setState(() => notificationsEnabled = !notificationsEnabled);
@@ -71,16 +89,22 @@ class _KimAddonsAppState extends State<KimAddonsApp> {
             : ColorScheme.light(primary: primaryThemeColor),
         fontFamily: 'Roboto',
       ),
-      home: MainNavigationScreen(
-        isDarkMode: isDarkMode,
-        notificationsEnabled: notificationsEnabled,
-        primaryColor: primaryThemeColor,
-        currentLanguage: currentLanguage,
-        toggleTheme: toggleTheme,
-        toggleNotifications: toggleNotifications,
-        changePrimaryColor: changePrimaryColor,
-        changeLanguage: changeLanguage,
-      ),
+      home: !_initialized
+          ? Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(color: primaryThemeColor),
+              ),
+            )
+          : MainNavigationScreen(
+              isDarkMode: isDarkMode,
+              notificationsEnabled: notificationsEnabled,
+              primaryColor: primaryThemeColor,
+              currentLanguage: currentLanguage,
+              toggleTheme: toggleTheme,
+              toggleNotifications: toggleNotifications,
+              changePrimaryColor: changePrimaryColor,
+              changeLanguage: changeLanguage,
+            ),
     );
   }
 }
@@ -121,7 +145,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       stream: FirebaseFirestore.instance.collection('addons').snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text('خطأ في الاتصال بالسحابة: ${snapshot.error}'));
+          return Center(child: Text('خطأ في جلب البيانات: ${snapshot.error}'));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -135,7 +159,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         if (filtered.isEmpty) {
           return const Center(
             child: Text(
-              'لا توجد مودات حالياً.\nأضف موداً جديداً من لوحة الأدمن لتظهر هنا سحابياً!',
+              'لا توجد مودات حالياً.\nأضف موداً جديداً من لوحة الأدمن!',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
@@ -157,7 +181,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 contentPadding: const EdgeInsets.all(12),
                 leading: CircleAvatar(
                   backgroundColor: widget.primaryColor.withOpacity(0.15),
-                  child: Icon(Icons.cloud_done, color: widget.primaryColor),
+                  child: Icon(Icons.extension, color: widget.primaryColor),
                 ),
                 title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: Column(
@@ -208,8 +232,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           Expanded(child: _buildCloudAddonsList()),
         ],
       ),
-      const Center(child: Text('المحفوظات الفارغة')),
-      const Center(child: Text('التحميلات الفارغة')),
+      const Center(child: Text('المحفوظات')),
+      const Center(child: Text('التحميلات')),
       ProfileScreen(primaryColor: widget.primaryColor),
     ];
 
@@ -281,7 +305,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       appBar: AppBar(
         backgroundColor: widget.isDarkMode ? const Color(0xFF1A1A1A) : widget.primaryColor,
         elevation: 0,
-        // صورة/شعار التطبيق على الجانب بدلاً من النص والرمز
         title: Row(
           children: [
             Container(
@@ -394,7 +417,7 @@ class _CloudAdminPanelState extends State<CloudAdminPanel> {
   void _uploadToCloud() async {
     if (_titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى إدخال اسم المود على الأقل')),
+        const SnackBar(content: Text('يرجى إدخال اسم المود')),
       );
       return;
     }
