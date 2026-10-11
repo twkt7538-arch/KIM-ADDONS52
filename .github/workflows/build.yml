@@ -2,12 +2,13 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -20,17 +21,22 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.47.7'
+          flutter-version: '3.19.x'
           channel: 'stable'
 
-      - name: Install Dependencies
+      - name: Force Fix Compile SDK to 36
+        run: |
+          sed -i 's/compileSdk.*/compileSdk 36/g' android/app/build.gradle || true
+          sed -i 's/targetSdk.*/targetSdk 36/g' android/app/build.gradle || true
+
+      - name: Get Dependencies
         run: flutter pub get
 
-      - name: Build APK Split Per ABI
-        run: flutter build apk --release --split-per-abi
+      - name: Build APK
+        run: flutter build apk --release --no-tree-shake-icons
 
-      - name: Upload APK Artifacts
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Kim-Addons-APKs
-          path: build/app/outputs/flutter-apk/*.apk
+          name: app-release
+          path: build/app/outputs/flutter-apk/app-release.apk
