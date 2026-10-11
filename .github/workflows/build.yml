@@ -15,13 +15,13 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: 'temurin'
           java-version: '17'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.2'
+          flutter-version: '3.19.6'
           channel: 'stable'
 
       - name: Force Fix Compile SDK to 36
@@ -32,8 +32,11 @@ jobs:
       - name: Get Dependencies
         run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --release --no-tree-shake-icons
+      - name: Clean and Build APK
+        run: |
+          cd android && ./gradlew clean || true
+          cd ..
+          flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
