@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,24 +21,6 @@ class AddonModel {
     required this.imageUrl,
     required this.downloadLink,
   });
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'category': category,
-        'description': description,
-        'imageUrl': imageUrl,
-        'downloadLink': downloadLink,
-      };
-
-  factory AddonModel.fromJson(Map<String, dynamic> json) => AddonModel(
-        id: json['id'] ?? '',
-        title: json['title'] ?? '',
-        category: json['category'] ?? 'عام',
-        description: json['description'] ?? '',
-        imageUrl: json['imageUrl'] ?? '',
-        downloadLink: json['downloadLink'] ?? '',
-      );
 }
 
 class KimAddonsApp extends StatefulWidget {
@@ -119,41 +99,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   String searchQuery = "";
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  List<AddonModel> localAddons = [];
+  
+  // قائمة المودات المحلية الثابتة أثناء تشغيل التطبيق
+  static final List<AddonModel> globalAddons = [];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadAddons();
-  }
-
-  Future<void> _loadAddons() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? addonsString = prefs.getString('local_addons');
-    if (addonsString != null) {
-      final List decoded = jsonDecode(addonsString);
-      setState(() {
-        localAddons = decoded.map((e) => AddonModel.fromJson(e)).toList();
-      });
-    }
-  }
-
-  Future<void> _saveAddons() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String encoded = jsonEncode(localAddons.map((e) => e.toJson()).toList());
-    await prefs.setString('local_addons', encoded);
-  }
-
-  void _add这位NewAddon(AddonModel addon) {
+  void _addNewAddon(AddonModel addon) {
     setState(() {
-      localAddons.add(addon);
+      globalAddons.add(addon);
     });
-    _saveAddons();
   }
 
   @override
   Widget build(BuildContext context) {
-    final filteredAddons = localAddons
+    final filteredAddons = globalAddons
         .where((e) => e.title.toLowerCase().contains(searchQuery.toLowerCase()))
         .toList();
 
@@ -239,7 +197,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       const Center(child: Text('التحميلات')),
       ProfileScreen(
         primaryColor: widget.primaryColor,
-        onAddAddon: _add这位NewAddon,
+        onAddAddon: _addNewAddon,
       ),
     ];
 
@@ -453,7 +411,7 @@ class _LocalAddonPanelState extends State<LocalAddonPanel> {
 
     widget.onAdd(newAddon);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم حفظ المود محلياً بنجاح! 🚀')),
+      const SnackBar(content: Text('تمت إضافة المود بنجاح! 🚀')),
     );
     Navigator.pop(context);
   }
@@ -501,7 +459,7 @@ class _LocalAddonPanelState extends State<LocalAddonPanel> {
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               onPressed: _saveLocalAddon,
-              child: const Text('حفظ ونشر محلياً 💾', style: TextStyle(color: Colors.white, fontSize: 16)),
+              child: const Text('إضافة المود 💾', style: TextStyle(color: Colors.white, fontSize: 16)),
             ),
           ],
         ),
