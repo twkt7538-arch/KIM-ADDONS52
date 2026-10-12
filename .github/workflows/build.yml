@@ -25,7 +25,7 @@ jobs:
           channel: 'stable'
 
       - name: Create Android Platform Automatically
-        run: flutter create . --platforms=android --org com.example
+        run: flutter create . --platforms=android --org com.example --project-name kim_addons52
 
       - name: Force Fix Compile SDK to 36
         run: |
