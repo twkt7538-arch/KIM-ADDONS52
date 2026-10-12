@@ -24,6 +24,11 @@ jobs:
           flutter-version: '3.22.2'
           channel: 'stable'
 
+      - name: Force Fix Compile SDK to 36
+        run: |
+          sed -i 's/compileSdk.*/compileSdk 36/g' android/app/build.gradle || true
+          sed -i 's/targetSdk.*/targetSdk 36/g' android/app/build.gradle || true
+
       - name: Get Dependencies
         run: flutter pub get
 
